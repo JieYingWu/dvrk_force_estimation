@@ -9,12 +9,13 @@ class torqueNetwork(nn.Module):
 
         self.layer1 = nn.Linear(12, 100, bias=True)
         self.layer2 = nn.Linear(100, 1, bias=True)
-
+        self.activation = nn.Tanh()
+        
     def forward(self, x):
         layer1 = self.layer1(x)
-        layer1 = torch.sigmoid(layer1)
+        layer1 = self.activation(layer1)
         layer2 = self.layer2(layer1)
-
+        
         output = layer2
 
         return output
