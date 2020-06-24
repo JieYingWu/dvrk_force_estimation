@@ -3,8 +3,15 @@ import torch
 from pathlib import Path
 from dataset import jointDataset
 from network import torqueNetwork
+import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from loss import NmrseLoss
+
+def init_weights(m):
+    if type(m) == nn.Linear:
+        torch.nn.init.xavier_uniform(m.weight)
+        m.bias.data.fill_(0.01)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 JOINTS = 6
@@ -13,12 +20,12 @@ train_path = '../data/csv/train/'
 val_path = '../data/csv/val/'
 root = Path('checkpoints' )
 
-lr = 1e-1
+lr = 1e-2
 batch_size = 4096
-epochs = 2000
+epochs = 5000
 validate_each = 5
 use_previous_model = False
-epoch_to_use = 180
+epoch_to_use = 2585
 
 networks = []
 optimizers = []
@@ -27,7 +34,7 @@ for j in range(JOINTS):
     networks.append(torqueNetwork())
     networks[j].to(device)
     optimizers.append(torch.optim.SGD(networks[j].parameters(), lr))
-    schedulers.append(ReduceLROnPlateau(optimizers[j]))
+    schedulers.append(ReduceLROnPlateau(optimizers[j], verbose=True))
                           
 
 train_dataset = jointDataset(train_path)
@@ -58,6 +65,8 @@ if use_previous_model:
             print('Failed to restore model')
             exit()
 else:
+    for j in range(JOINTS):
+        init_weights(networks[j])
     epoch = 1
 
 save = lambda ep, model, model_path, error, optimizer, scheduler: torch.save({
@@ -72,7 +81,7 @@ print('Training for ' + str(epochs))
 for e in range(epoch, epochs + 1):
 
     tq = tqdm.tqdm(total=(len(train_loader) * batch_size))
-    tq.set_description('Epoch {}, lr {}'.format(e, lr))
+    tq.set_description('Epoch {}, lr {}'.format(e, optimizers[0].param_groups[0]['lr']))
     epoch_loss = 0
 
     for j in range(JOINTS):

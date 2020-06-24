@@ -8,6 +8,7 @@ class jointDataset(Dataset):
 
         all_joints = np.array([])
         for cur_file in os.listdir(joint_path):
+            print(cur_file)
             cur_path = os.path.join(joint_path, cur_file)
             cur_mat = np.loadtxt(cur_path, delimiter=',')
             all_joints = np.vstack((all_joints, cur_mat)) if all_joints.size else cur_mat

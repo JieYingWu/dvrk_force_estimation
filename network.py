@@ -7,16 +7,20 @@ class torqueNetwork(nn.Module):
     def __init__(self):
         super(torqueNetwork, self).__init__()
 
-        self.layer1 = nn.Linear(12, 100, bias=True)
-        self.layer2 = nn.Linear(100, 1, bias=True)
-        self.activation = nn.Tanh()
+        self.layer1 = nn.Linear(12, 100)
+        self.layer2 = nn.Linear(100, 100)
+        self.layer3 = nn.Linear(100, 100)  
+        self.layer4 = nn.Linear(100, 1)
+        self.activation = nn.ReLU()
         
     def forward(self, x):
-        layer1 = self.layer1(x)
-        layer1 = self.activation(layer1)
-        layer2 = self.layer2(layer1)
+        x = self.layer1(x)
+        x = self.activation(x)
+        x = self.layer2(x)
+        x = self.activation(x)
+        x = self.layer3(x)
+        x = self.activation(x)
+        x = self.layer4(x)
         
-        output = layer2
-
-        return output
+        return x
 
