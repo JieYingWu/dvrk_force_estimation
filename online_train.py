@@ -37,7 +37,21 @@ class OnlineTrain():
             print("Model path exists")
             
         if pretrained_model:
-            
+            for j in range(JOINTS):
+                model_path = model_root / 'model_joint_{}_{}.pt'.format(j, epoch_to_use)
+                if model_path.exists():
+                    state = torch.load(str(model_path))
+                    epoch = state['epoch'] + 1
+                    networks[j].load_state_dict(state['model'])
+                    optimizers[j].load_state_dict(state['optimizer'])
+                    schedulers[j].load_state_dict(state['scheduler'])
+                print('Restored model, epoch {}, joint {}'.format(epoch-1, j))
+            else:
+                print('Failed to restore model')
+                exit()
+        else:
+            epoch = 1
+
         
     # configuration
     def configure(self):

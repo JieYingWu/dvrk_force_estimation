@@ -26,9 +26,12 @@ class RosbagParser():
         joint_velocity = []
         joint_effort = []
         joint_timestamps = []
+        jacobian = []
+        jacobian_timestamps = []
 
         length_force_sensor = 0
         length_state_joint_current = 0
+        length_jacobian = 0
 
         print("Processing " + file_name)
         state_joint_current = bag.read_messages(topics=['/dvrk/PSM1/state_joint_current'])
@@ -43,9 +46,16 @@ class RosbagParser():
 
             # handles effort for six joints
             joint_effort.append(list(msg.effort))
-
             length_state_joint_current+=1
 
+        jacobian_spatial = bag.read_messages(topics=['/dvrk/PSM1/jacobian_spatial'])
+        for topic, msg, t in jacobian_spatial:
+            jacobian_timestamps.append(t.secs+t.nsecs*10**-9)
+            # jacobian
+            jacobian.append(list(msg.data))
+            length_jacobian+=1
+        
+            
         wrench = bag.read_messages(topics=['/atinetft/wrench'])
         for topic, msg, t in wrench:
             timestamps = t.secs+t.nsecs*10**-9
@@ -60,17 +70,25 @@ class RosbagParser():
                                       
         print("Processed wrench: counts: {}".format(length_force_sensor))
         print("Processed state joint current: count: {}".format(length_state_joint_current))
+        print("Processed Jacobian: count: {}".format(length_jacobian))
         print("")
 
         joints = np.column_stack((joint_timestamps, joint_position, joint_velocity, joint_effort))
-        force_sensor = np.column_stack((force_sensor_timestamps,force_sensor))
+        if length_force_sensor: 
+            force_sensor = np.column_stack((force_sensor_timestamps,force_sensor))
+            jacobian = np.column_stack((jacobian_timestamps, jacobian))
+        else:
+            force_sensor = None
+            jacobian = None
 
-        return joints, force_sensor
+        return joints, force_sensor, jacobian
 
-    def write(self, joints, force_sensor):
-        file_name = self.output + self.prefix + str(self.index)
-        np.savetxt(file_name + "_joint_values.csv", joints, delimiter=',')
-        np.savetxt(file_name + "_force_sensor.csv", force_sensor, delimiter=',')
+    def write(self, joints, force_sensor, jacobian):
+        file_name = self.prefix + str(self.index)
+        np.savetxt(self.output + "joints/" + file_name + ".csv", joints, delimiter=',')
+        if force_sensor is not None:
+            np.savetxt(self.output + "sensor/" + file_name + ".csv", force_sensor, delimiter=',')
+            np.savetxt(self.output + "jacobian/" + file_name + ".csv", jacobian, delimiter=',')
         
     def parse_bags(self):
 
@@ -79,8 +97,8 @@ class RosbagParser():
         files.sort()
         for file_name in files:
             if file_name.endswith('.bag'):
-                joints, force_sensor = self.single_datapoint_processing(file_name)
-                self.write(joints, force_sensor)
+                joints, force_sensor, jacobian = self.single_datapoint_processing(file_name)
+                self.write(joints, force_sensor, jacobian)
                 self.index += 1
 
 def main():
@@ -88,7 +106,7 @@ def main():
     parser.add_argument('-f', '--folder', default='../data/', type=str, help='Path to Rosbag folder')
     parser.add_argument('-o', '--output', default='./parsed_data/', type=str, help='Path to write out parsed csv')
     parser.add_argument('--prefix', default='bag_', type=str, help='Prefix for the output csv names')
-    parser.add_argument('--index', default=0, type=int, help='Prefix for the output csv names')
+    parser.add_argument('--index', default=0, type=int, help='Starting index for the output csv names')
     args = parser.parse_args()
     start = time.time()
     rosbag_parser = RosbagParser(args)

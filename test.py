@@ -15,12 +15,12 @@ def nrmse_loss(y_hat, y):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 JOINTS = 6
 
-#test_path = '../data/csv/test/exp1_dynamic_identification'
-test_path = '../data/csv/val/'
+test_path = '../data/csv/test/test_set'
+#test_path = '../data/csv/val/'
 root = Path('checkpoints' )
 
 batch_size = 1000000
-epoch_to_use = 2215
+epoch_to_use = 1290
 
 networks = []
 for j in range(JOINTS):
@@ -66,7 +66,7 @@ for i, (posvel, torque) in enumerate(test_loader):
         else:
             all_torques = cur_torque
         
-np.savetxt('test.csv', all_torques) 
+np.savetxt('test.csv', all_torques[10000:15000,:]) 
 
 test_loss = test_loss*100
 print('Test loss: t1=%f, t2=%f, f3=%f, t4=%f, t5=%f, t6=%f' % (test_loss[0], test_loss[1], test_loss[2], test_loss[3], test_loss[4], test_loss[5]))

@@ -9,8 +9,7 @@ class torqueNetwork(nn.Module):
 
         self.layer1 = nn.Linear(12, 100)
         self.layer2 = nn.Linear(100, 100)
-        self.layer3 = nn.Linear(100, 100)  
-        self.layer4 = nn.Linear(100, 1)
+        self.layer3 = nn.Linear(100, 1)
         self.activation = nn.ReLU()
         
     def forward(self, x):
@@ -19,8 +18,6 @@ class torqueNetwork(nn.Module):
         x = self.layer2(x)
         x = self.activation(x)
         x = self.layer3(x)
-        x = self.activation(x)
-        x = self.layer4(x)
         
         return x
 
