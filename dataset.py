@@ -47,7 +47,7 @@ class jointDatasetWithSensor(Dataset):
         self.time = all_joints[:,0].astype('int64') # Don't know why the time get written out weird
         self.position_velocity = all_joints[:,1:13].astype('float32')
         self.torque = all_joints[:,13:19].astype('float32')
-        self.sensor = all_sensor.astype('float32')
+        self.sensor = all_sensor[:,1:].astype('float32')
         self.jacobian = all_jacobian[:,1:].astype('float32')
         
     def __len__(self):
@@ -61,3 +61,28 @@ class jointDatasetWithSensor(Dataset):
         jacobian = self.jacobian[idx, :].reshape(6,6)
         jacobian_inv_t = np.linalg.inv(jacobian).transpose()
         return posvel, torque, jacobian_inv_t, time
+
+class forceDataset(Dataset):
+    def __init__(self, path):
+
+        all_joints = np.array([])
+        all_sensor = np.array([])
+        joint_path = join(path, 'joints')
+        sensor_path = join(path, 'sensor')
+        for cur_file in os.listdir(joint_path):
+            print(cur_file)
+            joints = np.loadtxt(join(joint_path, cur_file), delimiter=',')
+            all_joints = np.vstack((all_joints, joints)) if all_joints.size else joints
+            sensor = np.loadtxt(join(sensor_path, cur_file), delimiter=',')
+            all_sensor = np.vstack((all_sensor, sensor)) if all_sensor.size else sensor
+            
+        self.veltorque = all_joints[:,7:19].astype('float32')
+        self.sensor = all_sensor[:,1:].astype('float32')
+        
+    def __len__(self):
+        return self.veltorque.shape[0]/10
+
+    def __getitem__(self, idx):
+        veltorque = self.veltorque[idx*10:idx*10+10,:].flatten()
+        sensor = self.sensor[idx*10+10,:].flatten()
+        return veltorque, sensor

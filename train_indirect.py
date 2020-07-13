@@ -16,8 +16,8 @@ def init_weights(m):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 JOINTS = 6
 
-train_path = '../data/csv/train/'
-val_path = '../data/csv/val/'
+train_path = '../data/csv/train/no_contact/joints/'
+val_path = '../data/csv/val/no_contact/joints/'
 root = Path('checkpoints' )
 
 lr = 1e-2
@@ -116,14 +116,10 @@ for e in range(epoch, epochs + 1):
             posvel = posvel.to(device)
             torque = torque.to(device)
 
-            step_loss = torch.zeros(JOINTS)
-            
             for j in range(JOINTS):
                 pred = networks[j](posvel)
                 loss = loss_fn(pred.squeeze(), torque[:,j])
-                step_loss[j] += loss.item()
-                
-            val_loss += step_loss
+                val_loss[j] += step_loss
 
         for j in range(JOINTS):
             schedulers[j].step(val_loss[j])
