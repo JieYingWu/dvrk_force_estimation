@@ -1,8 +1,8 @@
 import tqdm
 import torch
 from pathlib import Path
-from dataset import indirectWindowDataset
-from network import torqueWindowNetwork
+from dataset import indirectRnnDataset
+from network import torqueLstmNetwork
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -20,27 +20,27 @@ window = 16
 train_path = '../data/csv/train/no_contact/'
 val_path = '../data/csv/val/no_contact/'
 root = Path('checkpoints' ) 
-folder = "window"+str(window)
+folder = "lstm"+str(window)
 
-lr = 1e-3
+lr = 1e-2
 batch_size = 4096
 epochs = 5000
 validate_each = 5
-use_previous_model = True
+use_previous_model = False
 epoch_to_use = 425
 
 networks = []
 optimizers = []
 schedulers = []
 for j in range(JOINTS):
-    networks.append(torqueWindowNetwork(window))
+    networks.append(torqueLstmNetwork())
     networks[j].to(device)
     optimizers.append(torch.optim.SGD(networks[j].parameters(), lr))
     schedulers.append(ReduceLROnPlateau(optimizers[j], verbose=True))
                           
 
-train_dataset = indirectWindowDataset(train_path, window)
-val_dataset = indirectWindowDataset(val_path, window)
+train_dataset = indirectRnnDataset(train_path, window)
+val_dataset = indirectRnnDataset(val_path, window)
 train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False)
     
@@ -92,6 +92,7 @@ for e in range(epoch, epochs + 1):
     for i, (posvel, torque, jacobian) in enumerate(train_loader):
         posvel = posvel.to(device)
         torque = torque.to(device)
+        posvel = posvel.permute((1,0,2))
 
         step_loss = 0
 
@@ -117,6 +118,7 @@ for e in range(epoch, epochs + 1):
         for i, (posvel, torque, jacobian) in enumerate(train_loader):
             posvel = posvel.to(device)
             torque = torque.to(device)
+            posvel = posvel.permute((1,0,2))
 
             for j in range(JOINTS):
                 pred = networks[j](posvel)
@@ -132,3 +134,4 @@ for e in range(epoch, epochs + 1):
             save(e, networks[j], model_path, val_loss[j]/len(val_loader), optimizers[j], schedulers[j])
         
     tq.close()
+

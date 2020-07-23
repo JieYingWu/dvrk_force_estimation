@@ -1,7 +1,7 @@
 import tqdm
 import torch
 from pathlib import Path
-from dataset import forceDataset
+from dataset import directDataset
 from network import forceNetwork
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -32,20 +32,20 @@ network = forceNetwork(IN_CHANNELS, OUT_CHANNELS).to(device)
 optimizer = torch.optim.SGD(network.parameters(), lr)
 scheduler = ReduceLROnPlateau(optimizer, verbose=True)
                           
-train_dataset = forceDataset(train_path)
-val_dataset = forceDataset(val_path)
+train_dataset = directDataset(train_path)
+val_dataset = directDataset(val_path)
 train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False)
     
 loss_fn = torch.nn.MSELoss()
 
 try:
-    model_root = root / "models_with_sensors"
+    model_root = root / "models_direct"
     model_root.mkdir(mode=0o777, parents=False)
 except OSError:
     print("Model path exists")
 
-# Read existing weights for both G and D models
+# Read existing weights f or both G and D models
 if use_previous_model:
     model_path = model_root / 'model_{}.pt'.format(epoch_to_use)
     if model_path.exists():

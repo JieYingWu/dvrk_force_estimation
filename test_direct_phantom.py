@@ -1,60 +1,42 @@
 import torch
 import numpy as np
 from pathlib import Path
-from dataset import jointDataset
-from network import torqueNetwork
+from dataset import directDataset
+from network import forceNetwork
 from torch.utils.data import DataLoader
 
-def calculate_force(jacobian, joints):
-    force = np.zeros((joints.shape[0], 6))
-    for i in range(joints.shape[0]):
-        force[i,:] = np.matmul(jacobian[i], joints[i])
-    return force
+IN_CHANNELS = 120
+OUT_CHANNELS = 3
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-JOINTS = 6
 
-test_path = '../data/csv/test/phantoms/a/'
-#test_path = '../data/csv/val/'
+phantom = 'a'
+test_path = '../data/csv/test/phantoms/' + phantom + '/'
 root = Path('checkpoints' )
 
-batch_size = 100000000
-epoch_to_use = 1070
+batch_size = 10000000
+epoch_to_use = 5000
 
-networks = []
-for j in range(JOINTS):
-    networks.append(torqueNetwork())
-    networks[j].to(device)
-                          
-
-test_dataset = jointDataset(test_path)
+network = forceNetwork(IN_CHANNELS, OUT_CHANNELS).to(device)
+                        
+test_dataset = directDataset(test_path)
 test_loader = DataLoader(dataset=test_dataset, batch_size = batch_size, shuffle=False)
 
-model_root = root / "models"
-for j in range(JOINTS):
-    model_path = model_root / 'model_joint_{}_{}.pt'.format(j, epoch_to_use)
-    if model_path.exists():
-        state = torch.load(str(model_path))
-        epoch = state['epoch'] + 1
-        networks[j].load_state_dict(state['model'])
-        networks[j].eval()
-        print('Restored model, epoch {}, joint {}'.format(epoch-1, j))
-    else:
-        print('Failed to restore model')
-        exit()
+model_root = root / "models_direct"
+model_path = model_root / 'model_{}.pt'.format(epoch_to_use)
+if model_path.exists():
+    state = torch.load(str(model_path))
+    epoch = state['epoch'] + 1
+    network.load_state_dict(state['model'])
+    network.eval()
+    print('Restored model, epoch {}'.format(epoch-1))
+else:
+    print('Failed to restore model')
+    exit()
 
-test_loss = np.zeros(JOINTS)
-    
-for i, (posvel, torque) in enumerate(test_loader):
-    posvel = posvel.to(device)
+for i, (veltorque, sensor, cartesian) in enumerate(test_loader):
+    veltorque = veltorque.to(device)
+    pred = network(veltorque)
+    pred = np.concatenate((cartesian, pred.cpu().detach().numpy()), axis=1)
 
-    all_torques = np.zeros((posvel.size()[0], 6))
-    for j in range(JOINTS):
-        pred = networks[j](posvel).cpu().detach()
-        diff_torque = torque[:,j] - pred.transpose(1,0)
-        all_torques[:,j] = diff_torque.numpy()        
-
-    pred_force = np.concatenate((posvel, pred), axis=1)
-np.savetxt('force_sensor_test.csv', pred_force) 
- 
-    
+np.savetxt('phantom_test_direct_' + phantom + '.csv', pred) 

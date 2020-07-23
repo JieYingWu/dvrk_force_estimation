@@ -21,6 +21,9 @@ class RosbagParser():
             jacobian_path.mkdir(mode=0o777, parents=False)
             sensor_path = Path(self.output) / "sensor"
             sensor_path.mkdir(mode=0o777, parents=False)
+            sensor_path = Path(self.output) / "cartesian"
+            sensor_path.mkdir(mode=0o777, parents=False)
+
         except OSError:
             print("Data path exists")
 
@@ -45,10 +48,13 @@ class RosbagParser():
         joint_timestamps = []
         jacobian = []
         jacobian_timestamps = []
+        cartesian = []
+        cartesian_timestamps = []
 
         length_force_sensor = 0
         length_state_joint_current = 0
         length_jacobian = 0
+        length_cartesian = 0
 
         print("Processing " + file_name)
         state_joint_current = bag.read_messages(topics=['/dvrk/PSM1/state_joint_current'])
@@ -68,10 +74,18 @@ class RosbagParser():
         jacobian_spatial = bag.read_messages(topics=['/dvrk/PSM1/jacobian_spatial'])
         for topic, msg, t in jacobian_spatial:
             jacobian_timestamps.append(t.secs+t.nsecs*10**-9)
-            # jacobian
             jacobian.append(list(msg.data))
             length_jacobian+=1
-        
+
+        cartesian_spatial = bag.read_messages(topics=['/dvrk/PSM1/position_cartesian_current'])
+        for topic, msg, t in cartesian_spatial:
+            cartesian_timestamps.append(t.secs+t.nsecs*10**-9)
+            x = msg.pose.position.x
+            y = msg.pose.position.y
+            z = msg.pose.position.z 
+            cartesian.append(list([x,y,z]))
+            length_cartesian+=1
+
             
         wrench = bag.read_messages(topics=['/atinetft/wrench'])
         for topic, msg, t in wrench:
@@ -80,7 +94,7 @@ class RosbagParser():
             x = msg.wrench.force.x
             y = msg.wrench.force.y
             z = msg.wrench.force.z # the sensor is probably most accurate in the z direction
-            force_sensor.append(list((x,y,z)))
+            force_sensor.append([x,y,z])
             length_force_sensor+=1
 
         bag.close()
@@ -88,34 +102,44 @@ class RosbagParser():
         print("Processed wrench: counts: {}".format(length_force_sensor))
         print("Processed state joint current: count: {}".format(length_state_joint_current))
         print("Processed Jacobian: count: {}".format(length_jacobian))
+        print("Processed cartesian: count: {}".format(length_cartesian))
         
         joints = np.column_stack((joint_timestamps, joint_position, joint_velocity, joint_effort))
         if length_force_sensor: 
             force_sensor = np.column_stack((force_sensor_timestamps,force_sensor))
-            jacobian = np.column_stack((jacobian_timestamps, jacobian))
         else:
             force_sensor = None
-            jacobian = np.column_stack((jacobian_timestamps, jacobian))
-
+            
+        jacobian = np.column_stack((jacobian_timestamps, jacobian))
+        if length_cartesian: 
+            cartesian = np.column_stack((cartesian_timestamps, cartesian))
+        else:
+            cartesian = None
+    
         if self.interpolate:
-            joints = joints[joints[:,0] > jacobian[0,0],:]
-            joints = joints[joints[:,0] < jacobian[-1,0],:]
-            print('Interpolating Jacobian')
-            jacobian = self.interp(joints[:,0], jacobian)
-            
-        if self.interpolate and length_force_sensor > 0:            
-            force_sensor = force_sensor[force_sensor[:,0] > joints[0,0],:]
-            force_sensor = force_sensor[force_sensor[:,0] < joints[-1,0],:]
-            print('Interpolating Joints')
-            joints = self.interp(force_sensor[:,0], joints)
-            jacobian = self.interp(force_sensor[:,0], jacobian)
-            
-        return joints, force_sensor, jacobian
+            if length_force_sensor > 0:            
+                force_sensor = force_sensor[force_sensor[:,0] > joints[0,0],:]
+                force_sensor = force_sensor[force_sensor[:,0] < joints[-1,0],:]
+                joints = self.interp(force_sensor[:,0], joints)
+                jacobian = self.interp(force_sensor[:,0], jacobian)
+                if cartesian:
+                    cartesian = self.interp(force_sensor[:,0], cartesian)
+            else:
+                joints = joints[joints[:,0] > jacobian[0,0],:]
+                joints = joints[joints[:,0] < jacobian[-1,0],:]
+                jacobian = self.interp(joints[:,0], jacobian)
+                if cartesian is not None:
+                    cartesian = self.interp(joints[:,0], cartesian)
 
-    def write(self, joints, force_sensor, jacobian):
+            
+        return joints, force_sensor, jacobian, cartesian
+
+    def write(self, joints, force_sensor, jacobian, cartesian):
         file_name = self.prefix + str(self.index)        
         np.savetxt(self.output + "joints/" + file_name + ".csv", joints, delimiter=',')
         np.savetxt(self.output + "jacobian/" + file_name + ".csv", jacobian, delimiter=',')
+        if cartesian is not None:
+            np.savetxt(self.output + "cartesian/" + file_name + ".csv", cartesian, delimiter=',')
         if force_sensor is not None:
             np.savetxt(self.output + "sensor/" + file_name + ".csv", force_sensor, delimiter=',')
         print("Wrote out " + file_name)
@@ -128,8 +152,8 @@ class RosbagParser():
         files.sort()
         for file_name in files:
             if file_name.endswith('.bag'):
-                joints, force_sensor, jacobian = self.single_datapoint_processing(file_name)
-                self.write(joints, force_sensor, jacobian)
+                joints, force_sensor, jacobian, cartesian = self.single_datapoint_processing(file_name)
+                self.write(joints, force_sensor, jacobian, cartesian)
                 self.index += 1
 
 def main():
