@@ -1,3 +1,4 @@
+import sys
 import tqdm
 import torch
 from pathlib import Path
@@ -15,19 +16,21 @@ def init_weights(m):
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 JOINTS = 6
-window = 16
+window = 50
+skip = 10
 
-train_path = '../data/csv/train/no_contact/'
-val_path = '../data/csv/val/no_contact/'
+data = sys.argv[1]
+train_path = '../data/csv/train/' + data + '/'
+val_path = '../data/csv/val/' + data + '/'
 root = Path('checkpoints' ) 
-folder = "lstm"+str(window)
+folder = data + "_lstm"+str(window) + '_' + str(skip)
 
 lr = 1e-2
 batch_size = 4096
 epochs = 5000
 validate_each = 5
 use_previous_model = False
-epoch_to_use = 425
+epoch_to_use = 4200
 
 networks = []
 optimizers = []
@@ -39,8 +42,8 @@ for j in range(JOINTS):
     schedulers.append(ReduceLROnPlateau(optimizers[j], verbose=True))
                           
 
-train_dataset = indirectRnnDataset(train_path, window)
-val_dataset = indirectRnnDataset(val_path, window)
+train_dataset = indirectRnnDataset(train_path, window, skip)
+val_dataset = indirectRnnDataset(val_path, window, skip)
 train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False)
     
@@ -115,7 +118,7 @@ for e in range(epoch, epochs + 1):
             networks[j].eval()
 
         val_loss = torch.zeros(JOINTS)
-        for i, (posvel, torque, jacobian) in enumerate(train_loader):
+        for i, (posvel, torque, jacobian) in enumerate(val_loader):
             posvel = posvel.to(device)
             torque = torque.to(device)
             posvel = posvel.permute((1,0,2))

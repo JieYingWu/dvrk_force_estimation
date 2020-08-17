@@ -6,12 +6,7 @@ from network import forceNetwork
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from loss import NmrseLoss
-
-def init_weights(m):
-    if type(m) == nn.Linear:
-        torch.nn.init.xavier_uniform(m.weight)
-        m.bias.data.fill_(0.01)
+from utils import init_weights
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 IN_CHANNELS = 120
@@ -45,7 +40,6 @@ try:
 except OSError:
     print("Model path exists")
 
-# Read existing weights f or both G and D models
 if use_previous_model:
     model_path = model_root / 'model_{}.pt'.format(epoch_to_use)
     if model_path.exists():

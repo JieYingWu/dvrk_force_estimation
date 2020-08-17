@@ -21,8 +21,8 @@ class RosbagParser():
             jacobian_path.mkdir(mode=0o777, parents=False)
             sensor_path = Path(self.output) / "sensor"
             sensor_path.mkdir(mode=0o777, parents=False)
-            sensor_path = Path(self.output) / "cartesian"
-            sensor_path.mkdir(mode=0o777, parents=False)
+            cartesian_path = Path(self.output) / "cartesian"
+            cartesian_path.mkdir(mode=0o777, parents=False)
 
         except OSError:
             print("Data path exists")
@@ -57,7 +57,7 @@ class RosbagParser():
         length_cartesian = 0
 
         print("Processing " + file_name)
-        state_joint_current = bag.read_messages(topics=['/dvrk/PSM1/state_joint_current'])
+        state_joint_current = bag.read_messages(topics=['/dvrk/PSM2/state_joint_current'])
         for topic, msg, t in state_joint_current:
             joint_timestamps.append(t.secs+t.nsecs*10**-9)
 
@@ -71,13 +71,13 @@ class RosbagParser():
             joint_effort.append(list(msg.effort))
             length_state_joint_current+=1
 
-        jacobian_spatial = bag.read_messages(topics=['/dvrk/PSM1/jacobian_spatial'])
+        jacobian_spatial = bag.read_messages(topics=['/dvrk/PSM2/jacobian_spatial'])
         for topic, msg, t in jacobian_spatial:
             jacobian_timestamps.append(t.secs+t.nsecs*10**-9)
             jacobian.append(list(msg.data))
             length_jacobian+=1
 
-        cartesian_spatial = bag.read_messages(topics=['/dvrk/PSM1/position_cartesian_current'])
+        cartesian_spatial = bag.read_messages(topics=['/dvrk/PSM2/position_cartesian_current'])
         for topic, msg, t in cartesian_spatial:
             cartesian_timestamps.append(t.secs+t.nsecs*10**-9)
             x = msg.pose.position.x
@@ -120,17 +120,23 @@ class RosbagParser():
             if length_force_sensor > 0:            
                 force_sensor = force_sensor[force_sensor[:,0] > joints[0,0],:]
                 force_sensor = force_sensor[force_sensor[:,0] < joints[-1,0],:]
+                force_sensor = force_sensor[force_sensor[:,0] > jacobian[0,0],:]
+                force_sensor = force_sensor[force_sensor[:,0] < jacobian[-1,0],:]
+                if cartesian is not None:
+                    force_sensor = force_sensor[force_sensor[:,0] > cartesian[0,0],:]
+                    force_sensor = force_sensor[force_sensor[:,0] < cartesian[-1,0],:]
+                    cartesian = self.interp(force_sensor[:,0], cartesian)
+
                 joints = self.interp(force_sensor[:,0], joints)
                 jacobian = self.interp(force_sensor[:,0], jacobian)
-                if cartesian:
-                    cartesian = self.interp(force_sensor[:,0], cartesian)
             else:
                 joints = joints[joints[:,0] > jacobian[0,0],:]
                 joints = joints[joints[:,0] < jacobian[-1,0],:]
-                jacobian = self.interp(joints[:,0], jacobian)
                 if cartesian is not None:
+                    joints = joints[joints[:,0] > cartesian[0,0],:]
+                    joints = joints[joints[:,0] < cartesian[-1,0],:]
                     cartesian = self.interp(joints[:,0], cartesian)
-
+                jacobian = self.interp(joints[:,0], jacobian)
             
         return joints, force_sensor, jacobian, cartesian
 

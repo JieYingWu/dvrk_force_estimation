@@ -7,15 +7,19 @@ from network import torqueNetwork
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from utils import init_weights
+from loss import NmrseLoss
+
+def init_weights(m):
+    if type(m) == nn.Linear:
+        torch.nn.init.xavier_uniform(m.weight)
+        m.bias.data.fill_(0.01)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 JOINTS = 6
 window = 10
-skip = 100
+skip = 10
 
 data = sys.argv[1]
-train_path = '../data/csv/train/' + data + '/'
 val_path = '../data/csv/val/' + data + '/'
 root = Path('checkpoints' ) 
 folder = data + "_window" + str(window) + '_' + str(skip)
@@ -24,8 +28,8 @@ lr = 1e-2
 batch_size = 4096
 epochs = 1000
 validate_each = 5
-use_previous_model = False
-epoch_to_use = 995
+use_previous_model = True
+epoch_to_use = 1000
 
 networks = []
 optimizers = []
@@ -37,9 +41,7 @@ for j in range(JOINTS):
     schedulers.append(ReduceLROnPlateau(optimizers[j], verbose=True))
                           
 
-train_dataset = indirectDataset(train_path, window, skip)
 val_dataset = indirectDataset(val_path, window, skip)
-train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False)
     
 loss_fn = torch.nn.MSELoss()
@@ -50,12 +52,13 @@ try:
 except OSError:
     print("Model path exists")
 
+# Read existing weights for both G and D models
 if use_previous_model:
     for j in range(JOINTS):
         model_path = model_root / 'model_joint_{}_{}.pt'.format(j, epoch_to_use)
         if model_path.exists():
             state = torch.load(str(model_path))
-            epoch = state['epoch'] + 1
+            epoch = state['epoch'] #+ 1
             networks[j].load_state_dict(state['model'])
             optimizers[j].load_state_dict(state['optimizer'])
             schedulers[j].load_state_dict(state['scheduler'])
@@ -78,34 +81,6 @@ save = lambda ep, model, model_path, error, optimizer, scheduler: torch.save({
 
 print('Training for ' + str(epochs))
 for e in range(epoch, epochs + 1):
-
-    tq = tqdm.tqdm(total=(len(train_loader) * batch_size))
-    tq.set_description('Epoch {}, lr {}'.format(e, optimizers[0].param_groups[0]['lr']))
-    epoch_loss = torch.zeros(JOINTS)
-
-    for j in range(JOINTS):
-        networks[j].train()
-    
-    for i, (posvel, torque, jacobian) in enumerate(train_loader):
-        posvel = posvel.to(device)
-        torque = torque.to(device)
-
-        step_loss = torch.zeros(JOINTS)
-
-        for j in range(JOINTS):
-            pred = networks[j](posvel)
-            loss = loss_fn(pred.squeeze(), torque[:,j])
-            step_loss[j] += loss.item()
-            optimizers[j].zero_grad()
-            loss.backward()
-            optimizers[j].step()
-
-        tq.update(batch_size)
-        tq.set_postfix(loss=' loss={:.5f}'.format(torch.mean(step_loss)))
-        epoch_loss += step_loss
-
-    tq.set_postfix(loss=' loss={:.5f}'.format(torch.mean(epoch_loss)/len(train_loader)))
-    
     if e % validate_each == 0:
         for j in range(JOINTS):
             networks[j].eval()
@@ -120,12 +95,8 @@ for e in range(epoch, epochs + 1):
                 loss = loss_fn(pred.squeeze(), torque[:,j])
                 val_loss[j] += loss.item()
 
+        print(val_loss)
         for j in range(JOINTS):
             schedulers[j].step(val_loss[j])
         tq.set_postfix(loss='validation loss={:5f}'.format(torch.mean(val_loss)/len(val_loader)))
 
-        for j in range(JOINTS):
-            model_path = model_root / "model_joint_{}_{}.pt".format(j, e)
-            save(e, networks[j], model_path, val_loss[j]/len(val_loader), optimizers[j], schedulers[j])
-        
-    tq.close()
