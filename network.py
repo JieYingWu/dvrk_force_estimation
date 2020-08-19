@@ -4,10 +4,10 @@ import torch.nn as nn
 
 # Network maps joint position and velocity to torque
 class torqueNetwork(nn.Module):
-    def __init__(self, window):
+    def __init__(self, window, joints=6):
         super(torqueNetwork, self).__init__()
 
-        self.layer1 = nn.Linear(window*12, 512)
+        self.layer1 = nn.Linear(window*joints*2, 512)
         self.layer2 = nn.Linear(512, 256)
         self.layer3 = nn.Linear(256, 128)
         self.layer4 = nn.Linear(128, 1)
@@ -28,7 +28,7 @@ class torqueNetwork(nn.Module):
         x = self.bn3(x)
         x = self.layer4(x)
         return x
-
+    
 # Network maps joint position and velocity to torque
 class trocarNetwork(nn.Module):
     def __init__(self, window):

@@ -32,9 +32,9 @@ for j in range(JOINTS):
         state = torch.load(str(model_path))
         epoch = state['epoch'] + 1
         free_space_networks[j].load_state_dict(state['model'])
-        free_space_networks[j].eval()
-        for param in free_space_networks[j].parameters():
-            param.requires_grad = False
+#        free_space_networks[j].eval()
+#        for param in free_space_networks[j].parameters():
+#            param.requires_grad = False
         print('Restored model, epoch {}, joint {}'.format(epoch-1, j))
     else:
         print('Failed to restore model')
@@ -49,19 +49,19 @@ train_path = '../data/csv/train/' + data + '/'
 val_path = '../data/csv/val/' + data + '/'
 folder = data + "_2_part_"+str(window) + '_' + str(skip)
 
-lr = 1e-2
+lr = 1e-4
 batch_size = 4096
 epochs = 1000
 validate_each = 5
 use_previous_model = False
 epoch_to_use = 250
 
-networks = []
+networks = free_space_networks
 optimizers = []
 schedulers = []
 for j in range(JOINTS):
-    networks.append(trocarNetwork(window))
-    networks[j].to(device)
+#    networks.append(trocarNetwork(window))
+#    networks[j].to(device)
     optimizers.append(torch.optim.SGD(networks[j].parameters(), lr))
     schedulers.append(ReduceLROnPlateau(optimizers[j], verbose=True))
                           
@@ -121,13 +121,14 @@ for e in range(epoch, epochs + 1):
 
         step_loss = 0
 
-        free_space_torque = torch.zeros(posvel.size()[0], 6).to(device)
-        for j in range(JOINTS):
-            free_space_torque[:,j] = free_space_networks[j](posvel).squeeze()
+#        free_space_torque = torch.zeros(posvel.size()[0], 6).to(device)
+#        for j in range(JOINTS):
+#            free_space_torque[:,j] = free_space_networks[j](posvel).squeeze()
 
         for j in range(JOINTS):
             pred = networks[j](posvel)
-            loss = loss_fn(pred.squeeze(), torque[:,j]-free_space_torque[:,j])
+ #           loss = loss_fn(pred.squeeze(), torque[:,j]-free_space_torque[:,j])
+            loss = loss_fn(pred.squeeze(), torque[:,j])
             step_loss += loss.item()
             optimizers[j].zero_grad()
             loss.backward()
@@ -148,13 +149,14 @@ for e in range(epoch, epochs + 1):
             posvel = posvel.to(device)
             torque = torque.to(device)
 
-            free_space_torque = torch.zeros(posvel.size()[0], 6).to(device)
-            for j in range(JOINTS):
-                free_space_torque[:,j] = free_space_networks[j](posvel).squeeze()
+#            free_space_torque = torch.zeros(posvel.size()[0], 6).to(device)
+#            for j in range(JOINTS):
+#                free_space_torque[:,j] = free_space_networks[j](posvel).squeeze()
 
             for j in range(JOINTS):
                 pred = networks[j](posvel)
-                loss = loss_fn(pred.squeeze(), torque[:,j]-free_space_torque[:,j])
+#                loss = loss_fn(pred.squeeze(), torque[:,j]-free_space_torque[:,j])
+                loss = loss_fn(pred.squeeze(), torque[:,j])
                 val_loss[j] += loss.item()
 
         for j in range(JOINTS):

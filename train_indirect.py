@@ -12,7 +12,7 @@ from utils import init_weights
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 JOINTS = 6
 window = 10
-skip = 100
+skip = 10
 
 data = sys.argv[1]
 train_path = '../data/csv/train/' + data + '/'

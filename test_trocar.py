@@ -1,13 +1,10 @@
 import sys
-import tqdm
 import torch
 from pathlib import Path
 from dataset import indirectDataset
 from network import torqueNetwork, trocarNetwork
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-from loss import NmrseLoss
 from utils import nrmse_loss
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -50,16 +47,17 @@ test_path = '../data/csv/test/' + data + '/no_contact'
 folder = data + "_2_part_"+str(window) + '_' + str(skip)
 
 batch_size = 1000000
-epoch_to_use = 205
+epoch_to_use = 1000
 
 networks = []
 for j in range(JOINTS):
     networks.append(trocarNetwork(window))
-    networks[j].to(device)
+    networks[j].to(device).eval()
 
 test_dataset = indirectDataset(test_path, window, skip)
 test_loader = DataLoader(dataset=test_dataset, batch_size = batch_size, shuffle=False)
-    
+
+model_root = root / "models_indirect" / folder
 for j in range(JOINTS):
     model_path = model_root / 'model_joint_{}_{}.pt'.format(j, epoch_to_use)
     if model_path.exists():
@@ -71,9 +69,6 @@ for j in range(JOINTS):
         print('Failed to restore model')
         exit()
 
-for j in range(JOINTS):
-    networks[j].eval()
-
 test_loss = torch.zeros(JOINTS)
 for i, (posvel, torque, jacobian) in enumerate(test_loader):
     posvel = posvel.to(device)
@@ -84,8 +79,8 @@ for i, (posvel, torque, jacobian) in enumerate(test_loader):
         free_space_torque[:,j] = free_space_networks[j](posvel).squeeze()
         
     for j in range(JOINTS):
-        pred = networks[j](posvel)
-        loss = nrmse_loss(pred.squeeze()+free_space_torque[:,j], torque[:,j])
+#        pred = networks[j](posvel)
+        loss = nrmse_loss(free_space_torque[:,j], torque[:,j])
         test_loss[j] += loss.item()
         
 print('Test loss: t1=%f, t2=%f, f3=%f, t4=%f, t5=%f, t6=%f, mean=%f' % (test_loss[0], test_loss[1], test_loss[2], test_loss[3], test_loss[4], test_loss[5], (torch.mean(test_loss)/len(test_loader))))

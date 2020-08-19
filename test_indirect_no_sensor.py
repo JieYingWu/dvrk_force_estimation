@@ -20,7 +20,7 @@ root = Path('checkpoints' )
 folder = data + "_window"+str(window)+'_'+str(skip)
 
 batch_size = 1000000
-epoch_to_use = 310
+epoch_to_use = 1000
 loss_fn = torch.nn.MSELoss()
 
 networks = []

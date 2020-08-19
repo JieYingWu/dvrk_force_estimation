@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset
 
 class indirectDataset(Dataset):
-    def __init__(self, path, window, skip):
+    def __init__(self, path, window, skip, joints = [0,1,2,3,4,5]):
 
         all_joints = np.array([])
         all_cartesian = np.array([])
@@ -21,7 +21,9 @@ class indirectDataset(Dataset):
             all_jacobian = np.vstack((all_jacobian, jacobian)) if all_jacobian.size else jacobian
             
         self.time = all_joints[:,0].astype('int64') # Don't know why the time get written out weird
-        self.position_velocity = all_joints[:,1:13].astype('float32')
+        self.indices = torch.tensor(joints)
+        self.indices = torch.cat((self.indices, self.indices + 7)).tolist()
+        self.position_velocity = all_joints[:,self.indices].astype('float32')
         self.torque = all_joints[:,13:19].astype('float32')
         self.jacobian = all_jacobian[:,1:].astype('float32')
         self.window = window
@@ -40,7 +42,6 @@ class indirectDataset(Dataset):
         torque = self.torque[end,:]
         jacobian = self.jacobian[end, :]
         return posvel, torque, jacobian
-
 
 class indirectRnnDataset(Dataset):
     def __init__(self, path, window, skip):
