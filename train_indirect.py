@@ -11,8 +11,8 @@ from utils import init_weights
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 JOINTS = 6
-window = 10
-skip = 10
+window = 5
+skip = 5
 
 data = sys.argv[1]
 train_path = '../data/csv/train/' + data + '/'
@@ -25,7 +25,7 @@ batch_size = 4096
 epochs = 1000
 validate_each = 5
 use_previous_model = False
-epoch_to_use = 995
+epoch_to_use = 155
 
 networks = []
 optimizers = []
@@ -86,8 +86,10 @@ for e in range(epoch, epochs + 1):
     for j in range(JOINTS):
         networks[j].train()
     
-    for i, (posvel, torque, jacobian) in enumerate(train_loader):
-        posvel = posvel.to(device)
+    for i, (position, velocity, torque, jacobian) in enumerate(train_loader):
+        position = position.to(device)
+        velocity = velocity.to(device)
+        posvel = torch.cat((position, velocity), axis=1)
         torque = torque.to(device)
 
         step_loss = torch.zeros(JOINTS)
@@ -111,8 +113,10 @@ for e in range(epoch, epochs + 1):
             networks[j].eval()
 
         val_loss = torch.zeros(JOINTS)
-        for i, (posvel, torque, jacobian) in enumerate(val_loader):
-            posvel = posvel.to(device)
+        for i, (position, velocity, torque, jacobian) in enumerate(val_loader):
+            position = position.to(device)
+            velocity = velocity.to(device)
+            posvel = torch.cat((position, velocity), axis=1)
             torque = torque.to(device)
 
             for j in range(JOINTS):

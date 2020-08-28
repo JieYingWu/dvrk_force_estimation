@@ -47,8 +47,10 @@ for j in range(JOINTS):
 
 test_loss = torch.zeros(JOINTS)
     
-for i, (posvel, torque, jacobian) in enumerate(test_loader):
-    posvel = posvel.to(device)
+for i, (position, velocity, torque, jacobian) in enumerate(test_loader):
+    position = position.to(device)
+    velocity = velocity.to(device)
+    posvel = torch.cat((position, velocity), axis=1)
     torque = torque.to(device)
 
     for j in range(JOINTS):

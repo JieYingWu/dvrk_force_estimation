@@ -28,20 +28,68 @@ class torqueNetwork(nn.Module):
         x = self.bn3(x)
         x = self.layer4(x)
         return x
-    
-# Network maps joint position and velocity to torque
-class trocarNetwork(nn.Module):
-    def __init__(self, window):
-        super(trocarNetwork, self).__init__()
 
-        self.layer1 = nn.Linear(window*12, 512)
+# Network maps joint position and velocity to torque
+class wristNetwork(nn.Module):
+    def __init__(self, window, joints=6):
+        super(wristNetwork, self).__init__()
+
+        self.layer1 = nn.Linear(window*joints*2, 512)
         self.layer2 = nn.Linear(512, 256)
         self.layer3 = nn.Linear(256, 128)
-        self.layer4 = nn.Linear(128, 1)
+        self.layer4 = nn.Linear(128, 64)
+        self.layer5 = nn.Linear(64, 1)
         self.activation = nn.ReLU()
         self.bn1 = nn.BatchNorm1d(512)
         self.bn2 = nn.BatchNorm1d(256)
         self.bn3 = nn.BatchNorm1d(128)
+        self.bn4 = nn.BatchNorm1d(64)
+        
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.activation(x)
+        x = self.bn1(x)
+        x = self.layer2(x)
+        x = self.activation(x)
+        x = self.bn2(x)
+        x = self.layer3(x)
+        x = self.activation(x)
+        x = self.bn3(x)
+        x = self.layer4(x)
+        x = self.activation(x)
+        x = self.bn4(x)
+        x = self.layer5(x)
+        return x
+
+class wristTrocarNetwork(nn.Module):
+    def __init__(self, window, joints=6):
+        super(wristTrocarNetwork, self).__init__()
+
+        self.layer1 = nn.Linear(window*joints*2, 512)
+        self.layer2 = nn.Linear(512, 1)
+        self.activation = nn.ReLU()
+        self.bn1 = nn.BatchNorm1d(512)
+        
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.activation(x)
+        x = self.bn1(x)
+        x = self.layer2(x)
+        return x
+
+# Network maps joint position and velocity to torque
+class insertionNetwork(nn.Module):
+    def __init__(self, window, joints=6):
+        super(insertionNetwork, self).__init__()
+
+        self.layer1 = nn.Linear(window*joints*2, 256)
+        self.layer2 = nn.Linear(256, 128)
+        self.layer3 = nn.Linear(128, 64)
+        self.layer4 = nn.Linear(64, 1)
+        self.activation = nn.ReLU()
+        self.bn1 = nn.BatchNorm1d(256)
+        self.bn2 = nn.BatchNorm1d(128)
+        self.bn3 = nn.BatchNorm1d(64)
         
     def forward(self, x):
         x = self.layer1(x)
@@ -55,15 +103,73 @@ class trocarNetwork(nn.Module):
         x = self.bn3(x)
         x = self.layer4(x)
         return x
+
+class insertionTrocarNetwork(nn.Module):
+    def __init__(self, window, joints=6):
+        super(insertionTrocarNetwork, self).__init__()
+
+        self.layer1 = nn.Linear(window*joints*2, 512)
+        self.layer2 = nn.Linear(512, 256)
+        self.layer3 = nn.Linear(256, 1)
+        self.activation = nn.ReLU()
+        self.bn1 = nn.BatchNorm1d(512)
+        self.bn2 = nn.BatchNorm1d(256)
+        
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.activation(x)
+        x = self.bn1(x)
+        x = self.layer2(x)
+        x = self.activation(x)
+        x = self.bn2(x)
+        x = self.layer3(x)
+        return x
+
+class armNetwork(nn.Module):
+    def __init__(self, window, joints=6):
+        super(armNetwork, self).__init__()
+
+        self.layer1 = nn.Linear(window*joints*2, 512)
+        self.layer2 = nn.Linear(512, 256)
+        self.layer3 = nn.Linear(256, 1)
+        self.activation = nn.ReLU()
+        self.bn1 = nn.BatchNorm1d(512)
+        self.bn2 = nn.BatchNorm1d(256)
+        
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.activation(x)
+        x = self.bn1(x)
+        x = self.layer2(x)
+        x = self.activation(x)
+        x = self.bn2(x)
+        x = self.layer3(x)
+        return x
+    
+class armTrocarNetwork(nn.Module):
+    def __init__(self, window):
+        super(armTrocarNetwork, self).__init__()
+
+        self.layer1 = nn.Linear(window*12, 256)
+        self.layer2 = nn.Linear(256,1)
+        self.activation = nn.ReLU()
+        self.bn1 = nn.BatchNorm1d(256)
+        
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.activation(x)
+        x = self.bn1(x)
+        x = self.layer2(x)
+        return x
     
 
 # Vaguely inspired by LSTM from https://github.com/BerkeleyAutomation/dvrkCalibration/blob/cec2b8096e3a891c4dcdb09b3161e2a407fee0ee/experiment/3_training/modeling/models.py
 class torqueLstmNetwork(nn.Module):
-    def __init__(self, in_channels=12, hidden_dim=100, num_layers=2):
+    def __init__(self, window, joints=6, hidden_dim=64, num_layers=2):
         super(torqueLstmNetwork, self).__init__()
         self.num_layers = num_layers
         self.hidden_dim = hidden_dim
-        self.lstm = nn.LSTM(in_channels, hidden_dim, num_layers)  
+        self.lstm = nn.LSTM(joints*2, hidden_dim, num_layers)  
         self.linear = nn.Linear(hidden_dim, 1)
 
     def forward(self, x):

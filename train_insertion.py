@@ -1,32 +1,28 @@
 import sys
 import torch
-from network import wristNetwork
+from network import insertionNetwork
 import torch.nn as nn
 from utils import *
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-out_joints = [3,4,5]
-in_joints = [3,4,5]
-window = 20
-skip = 5
+window = 50
+skip = 2
+out_joints = [2]
+in_joints = [0,1,2,3,4,5]
 
 data = sys.argv[1]
-train_path = '../data/csv/val/' + data + '/'
-val_path = '../data/csv/val/' + data + '/'
-root = Path('checkpoints' ) 
-folder = data + "_wrist_window" + str(window) + '_' + str(skip)
+folder = data + "_insertion_window" + str(window) + '_' + str(skip)
 
-lr = 1e-2
+lr = 1e-3
 batch_size = 4096
 epochs = 1000
 validate_each = 5
 use_previous_model = False
-epoch_to_use = 5
+epoch_to_use = 25
 
 networks = []
 for j in range(len(out_joints)):
-    networks.append(wristNetwork(window, len(in_joints)))
-    networks[j].to(device)
+    networks.append(insertionNetwork(window).to(device))
                           
 model = jointLearner(data, folder, networks, window, skip, out_joints, in_joints, batch_size, lr, device)
 

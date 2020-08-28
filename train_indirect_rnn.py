@@ -7,7 +7,6 @@ from network import torqueLstmNetwork
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from loss import NmrseLoss
 
 def init_weights(m):
     if type(m) == nn.Linear:
@@ -36,7 +35,7 @@ networks = []
 optimizers = []
 schedulers = []
 for j in range(JOINTS):
-    networks.append(torqueLstmNetwork())
+    networks.append(torqueLstmNetwork(window))
     networks[j].to(device)
     optimizers.append(torch.optim.SGD(networks[j].parameters(), lr))
     schedulers.append(ReduceLROnPlateau(optimizers[j], verbose=True))
