@@ -5,43 +5,25 @@ from pathlib import Path
 from dataset import indirectDataset
 from network import wristNetwork
 from torch.utils.data import DataLoader
-from utils import nrmse_loss, load_model
+from utils import jointTester
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 num_joints = 3
-joints = [3,4,5]
+out_joints = [3,4,5]
+in_joints = [3,4,5]
 window = int(sys.argv[2])
 skip = int(sys.argv[3])
 
 data = sys.argv[1]
-#test_path = '../data/csv/test/exp1_dynamic_identification/'
-test_path = '../data/csv/test/' + data + '/no_contact/'
-#test_path = '../data/csv/val/' + data + '/'
-root = Path('checkpoints' )
 folder = data + "_wrist_window"+str(window)+'_'+str(skip)
 
 batch_size = 1000000
 epoch_to_use = int(sys.argv[4])
-loss_fn = torch.nn.MSELoss()
 
-networks = []
-for j in range(num_joints):
-    networks.append(wristNetwork(window, len(joints)))
-    networks[j] = load_model(root, folder, epoch_to_use, networks[j], j, device)
-                          
-test_dataset = indirectDataset(test_path, window, skip, joints)
-test_loader = DataLoader(dataset=test_dataset, batch_size = batch_size, shuffle=False)
-test_loss = torch.zeros(num_joints)
-    
-for i, (position, velocity, torque, jacobian) in enumerate(test_loader):
-    position = position.to(device)
-    velocity = velocity.to(device)
-    posvel = torch.cat((position, velocity), axis=1)
-    torque = torque.to(device)[:,-3:]
+network = wristNetwork(window, len(in_joints))
+model = jointTester(data, folder, network, window, skip, out_joints, in_joints, batch_size, device)
+model.load_prev(epoch_to_use)
 
-    for j in range(num_joints):
-        pred = networks[j](posvel).detach()
-        loss = nrmse_loss(pred.squeeze(), torque[:,j]).detach()
-        test_loss[j] += loss.item()
+test_loss = model.test()
         
-print('Test loss: t4=%f, t5=%f, t6=%f, mean=%f' % (test_loss[0], test_loss[1], test_loss[2], (torch.mean(test_loss)/len(test_loader))))
+print('Test loss: t4=%f, t5=%f, t6=%f, mean=%f' % (test_loss[0], test_loss[1], test_loss[2], (torch.mean(test_loss))))

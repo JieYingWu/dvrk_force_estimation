@@ -13,18 +13,16 @@ in_joints = [0,1,2,3,4,5]
 data = sys.argv[1]
 folder = data + "_insertion_window" + str(window) + '_' + str(skip)
 
-lr = 1e-3
+lr = 1e-2
 batch_size = 4096
 epochs = 1000
 validate_each = 5
 use_previous_model = False
 epoch_to_use = 25
 
-networks = []
-for j in range(len(out_joints)):
-    networks.append(insertionNetwork(window).to(device))
+network = insertionNetwork(window).to(device)
                           
-model = jointLearner(data, folder, networks, window, skip, out_joints, in_joints, batch_size, lr, device)
+model = jointLearner(data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
 
 if use_previous_model:
     model.load_prev(epoch_to_use)

@@ -19,12 +19,9 @@ validate_each = 5
 use_previous_model = False
 epoch_to_use = 995
 
-networks = []
-for j in range(len(out_joints)):
-    networks.append(armNetwork(window))
-    networks[j].to(device)
+network = armNetwork(window).to(device)
                           
-model = jointLearner(data, folder, networks, window, skip, out_joints, in_joints, batch_size, lr, device)
+model = jointLearner(data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
 
 if use_previous_model:
     model.load_prev(epoch_to_use)

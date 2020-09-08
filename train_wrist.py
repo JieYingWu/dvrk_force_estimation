@@ -7,12 +7,10 @@ from utils import *
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 out_joints = [3,4,5]
 in_joints = [3,4,5]
-window = 20
-skip = 5
+window = 2
+skip = 1
 
 data = sys.argv[1]
-train_path = '../data/csv/val/' + data + '/'
-val_path = '../data/csv/val/' + data + '/'
 root = Path('checkpoints' ) 
 folder = data + "_wrist_window" + str(window) + '_' + str(skip)
 
@@ -23,12 +21,9 @@ validate_each = 5
 use_previous_model = False
 epoch_to_use = 5
 
-networks = []
-for j in range(len(out_joints)):
-    networks.append(wristNetwork(window, len(in_joints)))
-    networks[j].to(device)
+network = wristNetwork(window, len(in_joints))
                           
-model = jointLearner(data, folder, networks, window, skip, out_joints, in_joints, batch_size, lr, device)
+model = jointLearner(data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
 
 if use_previous_model:
     model.load_prev(epoch_to_use)

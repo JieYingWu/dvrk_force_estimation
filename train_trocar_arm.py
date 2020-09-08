@@ -22,11 +22,11 @@ root = Path('checkpoints' )
 #############################################
 
 epoch_to_use = 1000
-free_space_networks = []
+fs_networks = []
 for j in range(num_joints):
     folder = "free_space_arm_window"+str(window) + "_" + str(skip)
-    free_space_networks.append(armNetwork(window))
-    free_space_networks[j] = load_model(root, folder, epoch_to_use, free_space_networks[j], j, device)
+    fs_networks.append(armNetwork(window))
+    fs_networks[j] = load_model(root, folder, epoch_to_use, fs_networks[j], j, device)
 
 #############################################
 ## Set up trocar model to train
@@ -48,7 +48,7 @@ networks = []
 for j in range(num_joints):
     networks.append(armTrocarNetwork(window).to(device))
 
-model = trocarLearner(data, folder, networks, window, skip, out_joints, in_joints, batch_size, lr, device, free_space_networks)
+model = trocarLearner(data, folder, networks, window, skip, out_joints, in_joints, batch_size, lr, device, fs_networks)
 
 if use_previous_model:
     model.load_prev(epoch_to_use)

@@ -3,47 +3,20 @@ import torch.nn as nn
 
 
 # Network maps joint position and velocity to torque
-class torqueNetwork(nn.Module):
-    def __init__(self, window, joints=6):
-        super(torqueNetwork, self).__init__()
-
-        self.layer1 = nn.Linear(window*joints*2, 512)
-        self.layer2 = nn.Linear(512, 256)
-        self.layer3 = nn.Linear(256, 128)
-        self.layer4 = nn.Linear(128, 1)
-        self.activation = nn.ReLU()
-        self.bn1 = nn.BatchNorm1d(512)
-        self.bn2 = nn.BatchNorm1d(256)
-        self.bn3 = nn.BatchNorm1d(128)
-        
-    def forward(self, x):
-        x = self.layer1(x)
-        x = self.activation(x)
-        x = self.bn1(x)
-        x = self.layer2(x)
-        x = self.activation(x)
-        x = self.bn2(x)
-        x = self.layer3(x)
-        x = self.activation(x)
-        x = self.bn3(x)
-        x = self.layer4(x)
-        return x
-
-# Network maps joint position and velocity to torque
 class wristNetwork(nn.Module):
     def __init__(self, window, joints=6):
         super(wristNetwork, self).__init__()
 
         self.layer1 = nn.Linear(window*joints*2, 512)
-        self.layer2 = nn.Linear(512, 256)
-        self.layer3 = nn.Linear(256, 128)
-        self.layer4 = nn.Linear(128, 64)
-        self.layer5 = nn.Linear(64, 1)
+        self.layer2 = nn.Linear(512, 512)
+        self.layer3 = nn.Linear(512, 256)
+        self.layer4 = nn.Linear(256, 256)
+        self.layer5 = nn.Linear(256, 3)
         self.activation = nn.ReLU()
         self.bn1 = nn.BatchNorm1d(512)
-        self.bn2 = nn.BatchNorm1d(256)
-        self.bn3 = nn.BatchNorm1d(128)
-        self.bn4 = nn.BatchNorm1d(64)
+        self.bn2 = nn.BatchNorm1d(512)
+        self.bn3 = nn.BatchNorm1d(256)
+        self.bn4 = nn.BatchNorm1d(256)
         
     def forward(self, x):
         x = self.layer1(x)
@@ -66,7 +39,7 @@ class wristTrocarNetwork(nn.Module):
         super(wristTrocarNetwork, self).__init__()
 
         self.layer1 = nn.Linear(window*joints*2, 512)
-        self.layer2 = nn.Linear(512, 1)
+        self.layer2 = nn.Linear(512, 3)
         self.activation = nn.ReLU()
         self.bn1 = nn.BatchNorm1d(512)
         
@@ -130,11 +103,15 @@ class armNetwork(nn.Module):
         super(armNetwork, self).__init__()
 
         self.layer1 = nn.Linear(window*joints*2, 512)
-        self.layer2 = nn.Linear(512, 256)
-        self.layer3 = nn.Linear(256, 1)
+        self.layer2 = nn.Linear(512, 512)
+        self.layer3 = nn.Linear(512, 256)
+        self.layer4 = nn.Linear(256, 256)
+        self.layer5 = nn.Linear(256, 2)
         self.activation = nn.ReLU()
         self.bn1 = nn.BatchNorm1d(512)
-        self.bn2 = nn.BatchNorm1d(256)
+        self.bn2 = nn.BatchNorm1d(512)
+        self.bn3 = nn.BatchNorm1d(256)
+        self.bn4 = nn.BatchNorm1d(256)
         
     def forward(self, x):
         x = self.layer1(x)
@@ -144,6 +121,12 @@ class armNetwork(nn.Module):
         x = self.activation(x)
         x = self.bn2(x)
         x = self.layer3(x)
+        x = self.activation(x)
+        x = self.bn3(x)
+        x = self.layer4(x)
+        x = self.activation(x)
+        x = self.bn4(x)
+        x = self.layer5(x)
         return x
     
 class armTrocarNetwork(nn.Module):
@@ -151,7 +134,7 @@ class armTrocarNetwork(nn.Module):
         super(armTrocarNetwork, self).__init__()
 
         self.layer1 = nn.Linear(window*12, 256)
-        self.layer2 = nn.Linear(256,1)
+        self.layer2 = nn.Linear(256,2)
         self.activation = nn.ReLU()
         self.bn1 = nn.BatchNorm1d(256)
         

@@ -5,11 +5,14 @@ from dataset import indirectDataset
 from network import insertionNetwork, insertionTrocarNetwork
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from utils import nrmse_loss, load_model
+from utils import nrmse_loss, load_model, trocarTester
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 window = 50
 skip = 2
+out_joints = [2]
+num_joints = len(out_joints)
+in_joints = [0,1,2,3,4,5]
 root = Path('checkpoints' ) 
 
 #############################################
@@ -37,7 +40,8 @@ for j in range(num_joints):
     networks.append(insertionTrocarNetwork(window))
     networks[j] = load_model(root, folder, epoch_to_use, networks[j], j, device)
 
-model = jointTester(data, networks, window, skip, out_joints, in_joints, batch_size, device, fs_networks)
-test_loss[0:2] = model.test()
+model = trocarTester(data, networks, window, skip, out_joints, in_joints, batch_size, device, fs_networks)
+uncorrected_loss, corrected_loss = model.test()
 
-print('Test loss: f3=%f, mean=%f' % (test_loss, test_loss))
+print('Uncorrected loss: f3=%f, mean=%f' % (uncorrected_loss[0], (torch.mean(uncorrected_loss))))
+print('Corrected loss: f3=%f, mean=%f' % (corrected_loss[0], (torch.mean(corrected_loss))))

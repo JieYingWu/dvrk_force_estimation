@@ -25,9 +25,9 @@ def init_weights(m):
         torch.nn.init.xavier_uniform(m.weight)
         m.bias.data.fill_(0.01)
 
-def load_model(root, folder, epoch, network, j, device):
+def load_model(root, folder, epoch, network, device):
     model_root = root / "models_indirect" / folder
-    model_path = model_root / 'model_joint_{}_{}.pt'.format(j, epoch)
+    model_path = model_root / 'model_joint_{}.pt'.format(epoch)
     if model_path.exists():
         state = torch.load(str(model_path))
         network.load_state_dict(state['model'])
@@ -49,18 +49,35 @@ save = lambda ep, model, model_path, error, optimizer, scheduler: torch.save({
 
 class jointTester(object):
 
-    def __init__(self, data, networks, window, skip, out_joints,
+    def __init__(self, data, folder, network, window, skip, out_joints,
                  in_joints, batch_size, device):
         path = '../data/csv/test/' + data + '/no_contact/'
         dataset = indirectDataset(path, window, skip, in_joints)
         self.loader = DataLoader(dataset=dataset, batch_size = batch_size, shuffle=False)
 
-        self.joints = out_joints
+        self.root = Path('checkpoints' ) 
+        self.model_root = self.root / "models_indirect" / folder
+        
         self.num_joints = len(out_joints)
-        self.networks = networks
+        self.joints = out_joints
+        self.network = network.to(device)
         self.device = device
         self.loss_fn = nrmse_loss
 
+    def load_prev(self, epoch):
+        if epoch == 0:
+            model_path = self.model_root / 'model_joint_best.pt'
+        else:
+            model_path = self.model_root / 'model_joint_{}.pt'.format(epoch)
+        if model_path.exists():
+            state = torch.load(str(model_path))
+            self.network.load_state_dict(state['model'])
+            print('Restored model, epoch {}'.format(epoch))
+            self.network.eval()
+        else:
+            print('Failed to restore model')
+            exit()
+            
     def test(self):
         test_loss = torch.zeros(self.num_joints)
         for i, (position, velocity, torque, jacobian) in enumerate(self.loader):
@@ -69,16 +86,16 @@ class jointTester(object):
             posvel = torch.cat((position, velocity), axis=1)
             torque = torque.to(self.device)[:,self.joints]
             
+            pred = self.network(posvel).detach()
             for j in range(self.num_joints):
-                pred = self.networks[j](posvel).detach()
-                loss = self.loss_fn(pred.squeeze(), torque[:,j]).detach()
-                test_loss[j] += loss.item()
+                loss = self.loss_fn(pred[:,j], torque[:,j]).detach()
+                test_loss[j] = loss.item()
 
         return test_loss
 
 class jointLearner(object):
     
-    def __init__(self, data, folder, networks, window, skip, out_joints,
+    def __init__(self, data, folder, network, window, skip, out_joints,
                  in_joints, batch_size, lr, device):
 
         self.train_path = '../data/csv/train/' + data + '/'
@@ -88,7 +105,7 @@ class jointLearner(object):
 
         self.num_joints = len(out_joints)
         self.joints = out_joints
-        self.networks = networks
+        self.network = network.to(device)
         self.batch_size = batch_size
         self.device = device
 
@@ -97,11 +114,8 @@ class jointLearner(object):
         except OSError:
             print("Model path exists")
         
-        self.optimizers = []
-        self.schedulers = []
-        for j in range(self.num_joints):
-            self.optimizers.append(torch.optim.SGD(self.networks[j].parameters(), lr))
-            self.schedulers.append(ReduceLROnPlateau(self.optimizers[j], verbose=True))
+        self.optimizer = torch.optim.SGD(self.network.parameters(), lr)
+        self.scheduler = ReduceLROnPlateau(self.optimizer, verbose=True)
 
         train_dataset = indirectDataset(self.train_path, window, skip, in_joints)
         val_dataset = indirectDataset(self.val_path, window, skip, in_joints)
@@ -110,88 +124,83 @@ class jointLearner(object):
 
         self.loss_fn = torch.nn.MSELoss()
 
-        for j in range(self.num_joints):
-            init_weights(self.networks[j])
+        init_weights(self.network)
         self.epoch = 1
 
+        self.best_loss = 100
 
     def load_prev(self, epoch):
-        for j in range(self.num_joints):
-            model_path = self.model_root / 'model_joint_{}_{}.pt'.format(j, epoch)
-            if model_path.exists():
-                state = torch.load(str(model_path))
-                self.networks[j].load_state_dict(state['model'])
-                self.optimizers[j].load_state_dict(state['optimizer'])
-                self.schedulers[j].load_state_dict(state['scheduler'])
-                print('Restored model, epoch {}'.format(epoch))
-            else:
-                print('Failed to restore model')
-                exit()
+        model_path = self.model_root / 'model_joint_{}.pt'.format(epoch)
+        if model_path.exists():
+            state = torch.load(str(model_path))
+            self.network.load_state_dict(state['model'])
+            self.optimizer.load_state_dict(state['optimizer'])
+            self.scheduler.load_state_dict(state['scheduler'])
+            print('Restored model, epoch {}'.format(epoch))
+        else:
+            print('Failed to restore model')
+            exit()
 
         
     def train_step(self, e):
         tq = tqdm.tqdm(total=(len(self.train_loader) * self.batch_size))
-        tq.set_description('Epoch {}, lr {}'.format(e, self.optimizers[0].param_groups[0]['lr']))
+        tq.set_description('Epoch {}, lr {}'.format(e, self.optimizer.param_groups[0]['lr']))
+        self.network.train()
 
-        for j in range(self.num_joints):
-            self.networks[j].train()
-
-        step_loss = self.step(self.train_loader, tq, train=True)
-        epoch_loss = torch.sum(step_loss)
+        epoch_loss = self.step(self.train_loader, tq, train=True)
         
         tq.set_postfix(loss=' loss={:.5f}'.format(epoch_loss/len(self.train_loader)))
         tq.close()
 
     def val_step(self, e):
         tq = tqdm.tqdm(total=(len(self.val_loader) * self.batch_size))
-        tq.set_description('Epoch {}, lr {}'.format(e, self.optimizers[0].param_groups[0]['lr']))
-        for j in range(self.num_joints):
-            self.networks[j].eval()
+        tq.set_description('Epoch {}, lr {}'.format(e, self.optimizer.param_groups[0]['lr']))
+        self.network.eval()
 
         val_loss = self.step(self.val_loader, tq, train=False)
+        self.scheduler.step(val_loss)
+        tq.set_postfix(loss='validation loss={:5f}'.format(val_loss/len(self.val_loader)))
 
-        for j in range(self.num_joints):
-            self.schedulers[j].step(val_loss[j])
-        tq.set_postfix(loss='validation loss={:5f}'.format(torch.mean(val_loss)/len(self.val_loader)))
+        model_path = self.model_root / "model_joint_{}.pt".format(e)
+        save(e, self.network, model_path, val_loss/len(self.val_loader), self.optimizer, self.scheduler)
 
-        for j in range(self.num_joints):
-            model_path = self.model_root / "model_joint_{}_{}.pt".format(j, e)
-            save(e, self.networks[j], model_path, val_loss[j]/len(self.val_loader), self.optimizers[j], self.schedulers[j])
+        if val_loss < self.best_loss:
+            model_path = self.model_root / "model_joint_best.pt"
+            save(e, self.network, model_path, val_loss/len(self.val_loader), self.optimizer, self.scheduler)
+            self.best_loss = val_loss
 
         tq.close()
 
     def step(self, loader, tq, train=False):
-        step_loss = torch.zeros(self.num_joints)
+        step_loss = 0
         for i, (position, velocity, torque, jacobian) in enumerate(loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
             posvel = torch.cat((position, velocity), axis=1)
             torque = torque.to(self.device)[:, self.joints]
 
-            for j in range(self.num_joints):
-                pred = self.networks[j](posvel)
-                loss = self.loss_fn(pred.squeeze(), torque[:,j])
-                step_loss[j] += loss.item()
+            pred = self.network(posvel)
+            loss = self.loss_fn(pred, torque)
+            step_loss += loss.item()
 
-                if (train):
-                    self.optimizers[j].zero_grad()
-                    loss.backward()
-                    self.optimizers[j].step()
+            if (train):
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
 
             tq.update(self.batch_size)
-            tq.set_postfix(loss=' loss={:.5f}'.format(torch.sum(step_loss)/(i+1)))
+            tq.set_postfix(loss=' loss={:.5f}'.format(step_loss/(i+1)))
 
         return step_loss
 
     
 class trocarLearner(jointLearner):
-    def __init__(self, data, folder, networks, window, skip, out_joints,
-                 in_joints, batch_size, lr, device, fs_networks):
-        super(trocarLearner, self).__init__(data, folder, networks, window, skip, out_joints,
+    def __init__(self, data, folder, network, window, skip, out_joints,
+                 in_joints, batch_size, lr, device, fs_network):
+        super(trocarLearner, self).__init__(data, folder, network, window, skip, out_joints,
                  in_joints, batch_size, lr, device)
         
-        self.fs_networks = fs_networks
-
+        self.fs_network = fs_network
 
     def step(self, loader, tq, train=False):
         step_loss = torch.zeros(self.num_joints)
@@ -201,50 +210,48 @@ class trocarLearner(jointLearner):
             posvel = torch.cat((position, velocity), axis=1)
             torque = torque.to(self.device)[:, self.joints]
 
-            fs_torque = torch.zeros(posvel.size()[0], self.num_joints).to(self.device)
-            for j in range(self.num_joints):
-                fs_torque[:,j] = self.fs_networks[j](posvel).squeeze().detach()
+            fs_torque = self.fs_network(posvel).squeeze().detach()
 
-            torque = torque - fs_torque
-            for j in range(self.num_joints):
-                pred = self.networks[j](posvel)
-                loss = self.loss_fn(pred.squeeze(), torque[:,j])
-                step_loss[j] += loss.item()
+            pred = self.network(posvel)
+            loss = self.loss_fn(pred.squeeze(), torque-fs_torque)
+            step_loss += loss.item()
 
-                if (train):
-                    self.optimizers[j].zero_grad()
-                    loss.backward()
-                    self.optimizers[j].step()
+            if (train):
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
 
             tq.update(self.batch_size)
-            tq.set_postfix(loss=' loss={:.5f}'.format(torch.sum(step_loss)))
+            tq.set_postfix(loss=' loss={:.5f}'.format(step_loss))
 
         return step_loss
 
 class trocarTester(jointTester):
 
-    def __init__(self, data, networks, window, skip, out_joints,
-                 in_joints, batch_size, device, fs_networks):
-        super(trocarTester, self).__init__(data, networks, window, skip, out_joints,
+    def __init__(self, data, network, window, skip, out_joints,
+                 in_joints, batch_size, device, fs_network):
+        super(trocarTester, self).__init__(data, network, window, skip, out_joints,
                                            in_joints, batch_size, device)
         
-        self.fs_networks = fs_networks
+        self.fs_network = fs_network
 
     def test(self):
-        test_loss = torch.zeros(self.num_joints)
+        uncorrected_loss = torch.zeros(self.num_joints)
+        corrected_loss = torch.zeros(self.num_joints)
         for i, (position, velocity, torque, jacobian) in enumerate(self.loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
             posvel = torch.cat((position, velocity), axis=1)
             torque = torque.to(self.device)[:,self.joints]
             
-            fs_torque = torch.zeros(posvel.size()[0], self.num_joints).to(self.device)
+            fs_torque = self.fs_network(posvel).squeeze()
             for j in range(self.num_joints):
-                fs_torque[:,j] = self.fs_networks[j](posvel).squeeze()
-        
-            for j in range(self.num_joints):
-                pred = self.networks[j](posvel)
-                loss = self.loss_fn(pred.squeeze()+fs_torque[:,j], torque[:,j])
-                test_loss[j] += loss.item()
+                loss = nrmse_loss(fs_torque[:,j], torque[:,j])
+                uncorrected_loss[j] += loss.item()
 
-        return test_loss
+            pred = self.network(posvel)
+            for j in range(self.num_joints):
+                loss = self.loss_fn(pred.squeeze()+fs_torque[:,j], torque[:,j])
+                corrected_loss[j] += loss.item()
+
+        return uncorrected_loss, corrected_loss

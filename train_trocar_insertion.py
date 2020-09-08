@@ -15,7 +15,7 @@ skip = 2
 out_joints = [2]
 num_joints = len(out_joints)
 in_joints = [0,1,2,3,4,5]
-root = Path('checkpoints' ) 
+root = Path('checkpoints') 
 
 #############################################
 ## Load free space model

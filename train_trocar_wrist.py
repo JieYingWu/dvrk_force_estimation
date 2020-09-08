@@ -22,19 +22,15 @@ root = Path('checkpoints' )
 #############################################
 
 epoch_to_use = 1000
-free_space_networks = []
-for j in range(num_joints):
-    folder = "free_space_wrist_window"+str(window) + "_" + str(skip)
-    fs_networks.append(wristNetwork(window, num_joints))
-    fs_networks[j] = load_model(root, folder, epoch_to_use, fs_networks[j], j, device)
+fs_network = wristNetwork(window, num_joints)
+folder = "free_space_wrist_window"+str(window) + "_" + str(skip)
+fs_network = load_model(root, folder, epoch_to_use, fs_network, device)
 
 #############################################
 ## Set up trocar model to train
 #############################################
 
 data = "trocar"
-train_path = '../data/csv/train/' + data + '/'
-val_path = '../data/csv/val/' + data + '/'
 folder = data + "_wrist_2_part_"+str(window) + '_' + str(skip)
 
 lr = 1e-2
@@ -44,11 +40,9 @@ validate_each = 5
 use_previous_model = False
 epoch_to_use = 250
 
-networks = []
-for j in range(num_joints):
-    networks.append(wristTrocarNetwork(window, num_joints).to(device))
+network = wristTrocarNetwork(window, num_joints).to(device)
 
-model = trocarLearner(data, folder, networks, window, skip, out_joints, in_joints, batch_size, lr, device, fs_networks)
+model = trocarLearner(data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, fs_network)
 
 if use_previous_model:
     model.load_prev(epoch_to_use)

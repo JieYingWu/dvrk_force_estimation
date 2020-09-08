@@ -42,6 +42,7 @@ for j in range(num_joints):
     networks[j] = load_model(root, folder, epoch_to_use, networks[j], j, device)
 
 model = trocarTester(data, networks, window, skip, out_joints, in_joints, batch_size, device, fs_networks)
-test_loss = model.test()
+uncorrected_loss, corrected_loss = model.test()
 
-print('Test loss: t4=%f, t5=%f, t6=%f, mean=%f' % (test_loss[0], test_loss[1], test_loss[2], (torch.mean(test_loss))))
+print('Uncorrected loss: t4=%f, t5=%f, t6=%f, mean=%f' % (uncorrected_loss[0], uncorrected_loss[1], uncorrected_loss[2], (torch.mean(uncorrected_loss))))
+print('Corrected loss: t4=%f, t5=%f, t6=%f, mean=%f' % (corrected_loss[0], corrected_loss[1], corrected_loss[2], (torch.mean(corrected_loss))))
