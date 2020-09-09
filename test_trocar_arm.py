@@ -4,6 +4,7 @@ from pathlib import Path
 from network import armNetwork, armTrocarNetwork
 import torch.nn as nn
 from utils import load_model, trocarTester
+import numpy as np
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 out_joints = [0,1]
@@ -19,11 +20,8 @@ root = Path('checkpoints' )
 
 epoch_to_use = 1000
 folder = "free_space_arm_window"+str(window) + "_" + str(skip)
-fs_networks = []
-for j in range(num_joints):
-    fs_networks.append(armNetwork(window))
-    fs_networks[j] = load_model(root, folder, epoch_to_use, fs_networks[j], j, device)
-
+fs_network = armNetwork(window)
+fs_network = load_model(root, folder, epoch_to_use, fs_network, device)
 
 #############################################
 ## Load trocar model
@@ -36,13 +34,13 @@ folder = data + "_arm_2_part_"+str(window) + '_' + str(skip)
 batch_size = 1000000
 epoch_to_use = int(sys.argv[1])
 
-networks = []
-for j in range(num_joints):
-    networks.append(armTrocarNetwork(window))
-    networks[j] = load_model(root, folder, epoch_to_use, networks[j], j, device)
+network = armTrocarNetwork(window)
+model = trocarTester(data, folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network)
+model.load_prev(epoch_to_use)
+uncorrected_loss, corrected_loss, torque, fs_pred, pred = model.test(True)
 
-model = trocarTester(data, networks, window, skip, out_joints, in_joints, batch_size, device, fs_networks)
-uncorrected_loss, corrected_loss = model.test()
+all_torque = torch.cat((torque, fs_pred, pred), axis=1).numpy()
+np.savetxt('generated/arm_torcar_pred.csv', all_torque, delimiter=',')
 
 print('Uncorrected loss: t1=%f, t2=%f, mean=%f' % (uncorrected_loss[0], uncorrected_loss[1], (torch.mean(uncorrected_loss))))
 print('Corrected loss: t1=%f, t2=%f, mean=%f' % (corrected_loss[0], corrected_loss[1], (torch.mean(corrected_loss))))

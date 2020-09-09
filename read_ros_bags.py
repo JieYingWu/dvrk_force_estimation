@@ -116,27 +116,26 @@ class RosbagParser():
         else:
             cartesian = None
     
-        if self.interpolate:
-            if length_force_sensor > 0:            
-                force_sensor = force_sensor[force_sensor[:,0] > joints[0,0],:]
-                force_sensor = force_sensor[force_sensor[:,0] < joints[-1,0],:]
-                force_sensor = force_sensor[force_sensor[:,0] > jacobian[0,0],:]
-                force_sensor = force_sensor[force_sensor[:,0] < jacobian[-1,0],:]
-                if cartesian is not None:
-                    force_sensor = force_sensor[force_sensor[:,0] > cartesian[0,0],:]
-                    force_sensor = force_sensor[force_sensor[:,0] < cartesian[-1,0],:]
-                    cartesian = self.interp(force_sensor[:,0], cartesian)
+        if self.interpolate and length_force_sensor > 0:
+            force_sensor = force_sensor[force_sensor[:,0] > joints[0,0],:]
+            force_sensor = force_sensor[force_sensor[:,0] < joints[-1,0],:]
+            force_sensor = force_sensor[force_sensor[:,0] > jacobian[0,0],:]
+            force_sensor = force_sensor[force_sensor[:,0] < jacobian[-1,0],:]
+            if cartesian is not None:
+                force_sensor = force_sensor[force_sensor[:,0] > cartesian[0,0],:]
+                force_sensor = force_sensor[force_sensor[:,0] < cartesian[-1,0],:]
+                cartesian = self.interp(force_sensor[:,0], cartesian)
 
-                joints = self.interp(force_sensor[:,0], joints)
-                jacobian = self.interp(force_sensor[:,0], jacobian)
-            else:
-                joints = joints[joints[:,0] > jacobian[0,0],:]
-                joints = joints[joints[:,0] < jacobian[-1,0],:]
-                if cartesian is not None:
-                    joints = joints[joints[:,0] > cartesian[0,0],:]
-                    joints = joints[joints[:,0] < cartesian[-1,0],:]
-                    cartesian = self.interp(joints[:,0], cartesian)
-                jacobian = self.interp(joints[:,0], jacobian)
+            joints = self.interp(force_sensor[:,0], joints)
+            jacobian = self.interp(force_sensor[:,0], jacobian)
+        else:
+            joints = joints[joints[:,0] > jacobian[0,0],:]
+            joints = joints[joints[:,0] < jacobian[-1,0],:]
+            if cartesian is not None:
+                joints = joints[joints[:,0] > cartesian[0,0],:]
+                joints = joints[joints[:,0] < cartesian[-1,0],:]
+                cartesian = self.interp(joints[:,0], cartesian)
+            jacobian = self.interp(joints[:,0], jacobian)
             
         return joints, force_sensor, jacobian, cartesian
 

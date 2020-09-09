@@ -7,12 +7,12 @@ from utils import *
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 out_joints = [3,4,5]
 in_joints = [3,4,5]
-window = 2
+window = 10
 skip = 1
 
 data = sys.argv[1]
 root = Path('checkpoints' ) 
-folder = data + "_wrist_window" + str(window) + '_' + str(skip)
+folder = data + "_wrist_window" + str(window) + '_' + str(skip)# + "_all_joints"
 
 lr = 1e-2
 batch_size = 4096

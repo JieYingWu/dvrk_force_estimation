@@ -10,12 +10,13 @@ from utils import jointTester
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 num_joints = 3
 out_joints = [3,4,5]
+#in_joints = [0,1,2,3,4,5]
 in_joints = [3,4,5]
 window = int(sys.argv[2])
 skip = int(sys.argv[3])
 
 data = sys.argv[1]
-folder = data + "_wrist_window"+str(window)+'_'+str(skip)
+folder = data + "_wrist_window"+str(window)+'_'+str(skip) #+ "_all_joints"
 
 batch_size = 1000000
 epoch_to_use = int(sys.argv[4])

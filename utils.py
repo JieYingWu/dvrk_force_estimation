@@ -78,7 +78,7 @@ class jointTester(object):
             print('Failed to restore model')
             exit()
             
-    def test(self):
+    def test(self, verbose=False):
         test_loss = torch.zeros(self.num_joints)
         for i, (position, velocity, torque, jacobian) in enumerate(self.loader):
             position = position.to(self.device)
@@ -91,6 +91,8 @@ class jointTester(object):
                 loss = self.loss_fn(pred[:,j], torque[:,j]).detach()
                 test_loss[j] = loss.item()
 
+        if verbose:
+            return test_loss, pred.detach().cpu()
         return test_loss
 
 class jointLearner(object):
@@ -203,12 +205,12 @@ class trocarLearner(jointLearner):
         self.fs_network = fs_network
 
     def step(self, loader, tq, train=False):
-        step_loss = torch.zeros(self.num_joints)
+        step_loss = 0
         for i, (position, velocity, torque, jacobian) in enumerate(loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
             posvel = torch.cat((position, velocity), axis=1)
-            torque = torque.to(self.device)[:, self.joints]
+            torque = torque.to(self.device)[:, self.joints].squeeze()
 
             fs_torque = self.fs_network(posvel).squeeze().detach()
 
@@ -222,20 +224,20 @@ class trocarLearner(jointLearner):
                 self.optimizer.step()
 
             tq.update(self.batch_size)
-            tq.set_postfix(loss=' loss={:.5f}'.format(step_loss))
+            tq.set_postfix(loss=' loss={:.5f}'.format(step_loss/(i+1)))
 
         return step_loss
 
 class trocarTester(jointTester):
 
-    def __init__(self, data, network, window, skip, out_joints,
+    def __init__(self, data, folder, network, window, skip, out_joints,
                  in_joints, batch_size, device, fs_network):
-        super(trocarTester, self).__init__(data, network, window, skip, out_joints,
+        super(trocarTester, self).__init__(data, folder, network, window, skip, out_joints,
                                            in_joints, batch_size, device)
         
         self.fs_network = fs_network
 
-    def test(self):
+    def test(self, verbose=False):
         uncorrected_loss = torch.zeros(self.num_joints)
         corrected_loss = torch.zeros(self.num_joints)
         for i, (position, velocity, torque, jacobian) in enumerate(self.loader):
@@ -245,13 +247,18 @@ class trocarTester(jointTester):
             torque = torque.to(self.device)[:,self.joints]
             
             fs_torque = self.fs_network(posvel).squeeze()
+            if self.num_joints == 1:
+                fs_torque = fs_torque.unsqueeze(1)
             for j in range(self.num_joints):
                 loss = nrmse_loss(fs_torque[:,j], torque[:,j])
                 uncorrected_loss[j] += loss.item()
 
             pred = self.network(posvel)
             for j in range(self.num_joints):
-                loss = self.loss_fn(pred.squeeze()+fs_torque[:,j], torque[:,j])
+                loss = self.loss_fn(pred[:,j]+fs_torque[:,j], torque[:,j])
                 corrected_loss[j] += loss.item()
 
+        if verbose:
+            return uncorrected_loss, corrected_loss, torque.detach().cpu(), fs_torque.detach().cpu(), pred.detach().cpu()
         return uncorrected_loss, corrected_loss
+    

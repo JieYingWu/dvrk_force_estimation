@@ -10,11 +10,11 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from utils import *
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-out_joints = [0,1]
-num_joints = len(out_joints)
-in_joints = [0,1,2,3,4,5]
 window = 10
 skip = 2
+out_joints = [0,1]
+in_joints = [0,1,2,3,4,5]
+batch_size = 4096
 root = Path('checkpoints' ) 
 
 #############################################
@@ -22,11 +22,9 @@ root = Path('checkpoints' )
 #############################################
 
 epoch_to_use = 1000
-fs_networks = []
-for j in range(num_joints):
-    folder = "free_space_arm_window"+str(window) + "_" + str(skip)
-    fs_networks.append(armNetwork(window))
-    fs_networks[j] = load_model(root, folder, epoch_to_use, fs_networks[j], j, device)
+folder = "free_space_arm_window"+str(window) + "_" + str(skip)
+fs_network = armNetwork(window)
+fs_network = load_model(root, folder, epoch_to_use, fs_network, device)
 
 #############################################
 ## Set up trocar model to train
@@ -38,17 +36,14 @@ val_path = '../data/csv/val/' + data + '/'
 folder = data + "_arm_2_part_"+str(window) + '_' + str(skip)
 
 lr = 1e-2
-batch_size = 4096
 epochs = 1000
 validate_each = 5
 use_previous_model = False
 epoch_to_use = 250
 
-networks = []
-for j in range(num_joints):
-    networks.append(armTrocarNetwork(window).to(device))
+network = armTrocarNetwork(window).to(device)
 
-model = trocarLearner(data, folder, networks, window, skip, out_joints, in_joints, batch_size, lr, device, fs_networks)
+model = trocarLearner(data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, fs_network)
 
 if use_previous_model:
     model.load_prev(epoch_to_use)
