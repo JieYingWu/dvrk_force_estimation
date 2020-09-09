@@ -78,8 +78,8 @@ uncorrected_loss[2], corrected_loss[2] = model.test()
 ## Load free space and trocar wrist model
 #############################################
 
-window = 20
-skip = 5te
+window = 2
+skip = 1
 out_joints = [3,4,5]
 num_joints = len(out_joints)
 in_joints = [3,4,5]

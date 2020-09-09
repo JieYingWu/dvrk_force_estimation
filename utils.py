@@ -25,8 +25,8 @@ def init_weights(m):
         torch.nn.init.xavier_uniform(m.weight)
         m.bias.data.fill_(0.01)
 
-def load_model(root, folder, epoch, network, device):
-    model_root = root / "models_indirect" / folder
+def load_model(folder, epoch, network, device):
+    model_root = Path('checkpoints') / "models_indirect" / folder
     model_path = model_root / 'model_joint_{}.pt'.format(epoch)
     if model_path.exists():
         state = torch.load(str(model_path))

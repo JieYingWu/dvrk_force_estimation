@@ -52,8 +52,8 @@ test_loss[2] = model.test()
 
 out_joints = [3,4,5]
 in_joints = [3,4,5]
-window = 20
-skip = 5
+window = 2
+skip = 1
 
 folder = data + "_wrist_window"+str(window)+'_'+str(skip)
 
