@@ -37,6 +37,13 @@ def load_model(folder, epoch, network, device):
         exit()
     return network
 
+def calculate_force(jacobian, joints):
+    force = torch.zeros((joints.shape[0], 6))
+    for i in range(joints.shape[0]):
+        j = jacobian[i].reshape(6,6)
+        jacobian_inv_t = torch.from_numpy(np.linalg.inv(j).transpose())
+        force[i,:] = torch.matmul(jacobian_inv_t, joints[i])
+    return force
         
 save = lambda ep, model, model_path, error, optimizer, scheduler: torch.save({
     'model': model.state_dict(),
@@ -78,7 +85,7 @@ class jointTester(object):
             print('Failed to restore model')
             exit()
             
-    def test(self, verbose=False):
+    def test(self, verbose=True):
         test_loss = torch.zeros(self.num_joints)
         for i, (position, velocity, torque, jacobian) in enumerate(self.loader):
             position = position.to(self.device)
@@ -92,7 +99,7 @@ class jointTester(object):
                 test_loss[j] = loss.item()
 
         if verbose:
-            return test_loss, pred.detach().cpu()
+            return test_loss, pred.detach().cpu(), jacobian
         return test_loss
 
 class jointLearner(object):
@@ -194,7 +201,6 @@ class jointLearner(object):
             tq.set_postfix(loss=' loss={:.5f}'.format(step_loss/(i+1)))
 
         return step_loss
-
     
 class trocarLearner(jointLearner):
     def __init__(self, data, folder, network, window, skip, out_joints,
@@ -237,7 +243,7 @@ class trocarTester(jointTester):
         
         self.fs_network = fs_network
 
-    def test(self, verbose=False):
+    def test(self, verbose=True):
         uncorrected_loss = torch.zeros(self.num_joints)
         corrected_loss = torch.zeros(self.num_joints)
         for i, (position, velocity, torque, jacobian) in enumerate(self.loader):

@@ -9,7 +9,7 @@ lr = 1e-2
 batch_size = 4096
 epochs = 1000
 validate_each = 5
-epoch_to_use = 1000
+fs_epoch = 1000
     
 def make_arm_model():
     out_joints = [0,1]
@@ -19,7 +19,7 @@ def make_arm_model():
     
     folder = "free_space_arm_window"+str(window) + "_" + str(skip)
     fs_network = armNetwork(window)
-    fs_network = load_model(folder, epoch_to_use, fs_network, device)
+    fs_network = load_model(folder, fs_epoch, fs_network, device)
 
     folder = "trocar_arm_2_part_"+str(window) + '_' + str(skip)
     network = armTrocarNetwork(window)
@@ -34,7 +34,7 @@ def make_insertion_model():
     
     folder = "free_space_insertion_window"+str(window) + "_" + str(skip)
     fs_network = insertionNetwork(window)
-    fs_network = load_model(folder, epoch_to_use, fs_network, device)
+    fs_network = load_model(folder, fs_epoch, fs_network, device)
 
     folder = "trocar_insertion_2_part_"+str(window) + '_' + str(skip)
     network = insertionTrocarNetwork(window)
@@ -44,15 +44,15 @@ def make_insertion_model():
 def make_wrist_model():
     out_joints = [3,4,5]
     in_joints = [3,4,5]
-    window = 2
+    window = 5
     skip = 1
 
     folder = "free_space_wrist_window"+str(window) + "_" + str(skip)
-    fs_network = wristNetwork(window)
-    fs_network = load_model(folder, epoch_to_use, fs_network, device)
+    fs_network = wristNetwork(window, len(in_joints))
+    fs_network = load_model(folder, fs_epoch, fs_network, device)
 
     folder = "trocar_wrist_2_part_"+str(window) + '_' + str(skip)
-    network = wristTrocarNetwork(window)
+    network = wristTrocarNetwork(window, len(in_joints))
     model = trocarLearner("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, fs_network)
     return model
 
@@ -70,8 +70,8 @@ def main():
         return
     
     print("Loaded a " + joint_name + " model")
-    use_previous_model = False
-    epoch_to_use = 995
+    use_previous_model = True
+    epoch_to_use = 20
 
     if use_previous_model:
         model.load_prev(epoch_to_use)

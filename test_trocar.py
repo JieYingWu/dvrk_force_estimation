@@ -7,7 +7,7 @@ import numpy as np
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 batch_size = 1000000
-epoch_to_use = 1000
+fs_epoch = 1000
 
 def make_arm_model(window, skip):
     out_joints = [0,1]
@@ -15,7 +15,7 @@ def make_arm_model(window, skip):
 
     folder = "free_space_arm_window"+str(window) + "_" + str(skip)
     fs_network = armNetwork(window)
-    fs_network = load_model(folder, epoch_to_use, fs_network, device)
+    fs_network = load_model(folder, fs_epoch, fs_network, device)
 
     folder = "trocar_arm_2_part_"+str(window) + '_' + str(skip)
     network = armTrocarNetwork(window)
@@ -29,7 +29,7 @@ def make_insertion_model(window, skip):
 
     folder = "free_space_insertion_window"+str(window) + "_" + str(skip)
     fs_network = insertionNetwork(window)
-    fs_network = load_model(folder, epoch_to_use, fs_network, device)
+    fs_network = load_model(folder, fs_epoch, fs_network, device)
 
     folder = "trocar_insertion_2_part_"+str(window) + '_' + str(skip)
     network = insertionTrocarNetwork(window)
@@ -41,12 +41,12 @@ def make_wrist_model(window, skip):
     in_joints = [3,4,5]
 
     folder = "free_space_wrist_window"+str(window) + "_" + str(skip)
-    fs_network = wristNetwork(window)
-    fs_network = load_model(folder, epoch_to_use, fs_network, device)
+    fs_network = wristNetwork(window, len(in_joints))
+    fs_network = load_model(folder, fs_epoch, fs_network, device)
 
     folder = "trocar_wrist_2_part_"+str(window) + '_' + str(skip)
-    network = wristTrocarNetwork(window)
-    model = trocarTester("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, fs_network)
+    network = wristTrocarNetwork(window, len(in_joints))
+    model = trocarTester("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network)
     return model
 
 def main():

@@ -39,15 +39,20 @@ class wristTrocarNetwork(nn.Module):
         super(wristTrocarNetwork, self).__init__()
 
         self.layer1 = nn.Linear(window*joints*2, 512)
-        self.layer2 = nn.Linear(512, 3)
+        self.layer2 = nn.Linear(512, 256)
+        self.layer3 = nn.Linear(256, 3)
         self.activation = nn.ReLU()
         self.bn1 = nn.BatchNorm1d(512)
+        self.bn2 = nn.BatchNorm1d(256)
         
     def forward(self, x):
         x = self.layer1(x)
         x = self.activation(x)
         x = self.bn1(x)
         x = self.layer2(x)
+        x = self.activation(x)
+        x = self.bn2(x)
+        x = self.layer3(x)
         return x
 
 # Network maps joint position and velocity to torque
@@ -133,16 +138,21 @@ class armTrocarNetwork(nn.Module):
     def __init__(self, window):
         super(armTrocarNetwork, self).__init__()
 
-        self.layer1 = nn.Linear(window*12, 256)
-        self.layer2 = nn.Linear(256,2)
+        self.layer1 = nn.Linear(window*12, 512)
+        self.layer2 = nn.Linear(512,256)
+        self.layer3 = nn.Linear(256,2)
         self.activation = nn.ReLU()
-        self.bn1 = nn.BatchNorm1d(256)
+        self.bn1 = nn.BatchNorm1d(512)
+        self.bn2 = nn.BatchNorm1d(256)
         
     def forward(self, x):
         x = self.layer1(x)
         x = self.activation(x)
         x = self.bn1(x)
         x = self.layer2(x)
+        x = self.activation(x)
+        x = self.bn2(x)
+        x = self.layer3(x)
         return x
     
 

@@ -32,7 +32,7 @@ def make_wrist_model(data, window, skip):
     in_joints = [3,4,5]
     folder = data + "_wrist_window" + str(window) + '_' + str(skip)# + "_all_joints"
 
-    network = wristNetwork(window, len(in_joints))
+    network = wristNetwork(window)
     model = jointTester(data, folder, network, window, skip, out_joints, in_joints, batch_size, device)
     return model
 
@@ -52,10 +52,10 @@ def main():
     else:
         print("Unknown joint name")
         return
-
+    
     print("Loaded a " + data + " model")
     model.load_prev(epoch_to_use)
-    test_loss = model.test() 
+    test_loss = model.test()
     print('Test loss: ', test_loss)
     
 if __name__ == "__main__":

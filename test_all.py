@@ -28,7 +28,8 @@ folder = data + "_arm_window"+str(window)+'_'+str(skip)
 arm_network = armNetwork(window)    
 model = jointTester(data, folder, arm_network, window, skip, out_joints, in_joints, batch_size, device)
 model.load_prev(epoch_to_use)
-test_loss[0:2] = model.test()
+test_loss[0:2], pred, jacobian = model.test()
+arm_pred = np.concatenate((pred.numpy(), jacobian.numpy()), axis=1)
     
 #############################################
 ## Load free space insertion model
@@ -44,7 +45,8 @@ folder = data + "_insertion_window"+str(window)+'_'+str(skip)
 insertion_network = insertionNetwork(window)
 model = jointTester(data, folder, insertion_network, window, skip, out_joints, in_joints, batch_size, device)
 model.load_prev(epoch_to_use)
-test_loss[2] = model.test()
+test_loss[2], pred, jacobian = model.test()
+insertion_pred = np.concatenate((pred.numpy(), jacobian.numpy()), axis=1)
 
 #############################################
 ## Load free space wrist model
@@ -52,7 +54,7 @@ test_loss[2] = model.test()
 
 out_joints = [3,4,5]
 in_joints = [3,4,5]
-window = 2
+window = 5
 skip = 1
 
 folder = data + "_wrist_window"+str(window)+'_'+str(skip)
@@ -60,6 +62,16 @@ folder = data + "_wrist_window"+str(window)+'_'+str(skip)
 wrist_network = wristNetwork(window, 3)
 model = jointTester(data, folder, wrist_network, window, skip, out_joints, in_joints, batch_size, device)
 model.load_prev(epoch_to_use)
-test_loss[3:] = model.test()
+test_loss[3:], pred, jacobian = model.test()
+wrist_pred = np.concatenate((pred.numpy(), jacobian.numpy()), axis=1)
 
+path = Path('../results/'+data +'_torques')
+try:
+    path.mkdir(mode=0o777, parents=False)
+except OSError:
+    print("Result path exists")
+    
+np.savetxt(path / 'arm.csv', arm_pred)
+np.savetxt(path / 'insertion.csv', insertion_pred)
+np.savetxt(path / 'wrist.csv', wrist_pred)
 print('Test loss: t1=%f, t2=%f, f3=%f, t4=%f, t5=%f, t6=%f, mean=%f' % (test_loss[0], test_loss[1], test_loss[2], test_loss[3], test_loss[4], test_loss[5], (torch.mean(test_loss))))

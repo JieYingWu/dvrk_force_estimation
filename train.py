@@ -35,11 +35,11 @@ def make_insertion_model(data):
 def make_wrist_model(data):
     out_joints = [3,4,5]
     in_joints = [3,4,5]
-    window = 2
+    window = 5
     skip = 1
     folder = data + "_wrist_window" + str(window) + '_' + str(skip)# + "_all_joints"
 
-    network = wristNetwork(window)
+    network = wristNetwork(window, len(in_joints))
     model = jointLearner(data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
     return model
 
@@ -58,8 +58,8 @@ def main():
         return
     
     print("Loaded a " + data + " model")
-    use_previous_model = False
-    epoch_to_use = 995
+    use_previous_model = True
+    epoch_to_use = 20
 
     if use_previous_model:
         model.load_prev(epoch_to_use)
