@@ -59,7 +59,7 @@ def main():
     
     print("Loaded a " + data + " model")
     use_previous_model = True
-    epoch_to_use = 20
+    epoch_to_use = 650
 
     if use_previous_model:
         model.load_prev(epoch_to_use)

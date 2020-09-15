@@ -1,7 +1,7 @@
 import tqdm
 import torch
 import torch.nn as nn
-from dataset import indirectDataset
+from dataset import indirectDataset, indirectForceDataset
 from pathlib import Path
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -87,7 +87,7 @@ class jointTester(object):
             
     def test(self, verbose=True):
         test_loss = torch.zeros(self.num_joints)
-        for i, (position, velocity, torque, jacobian) in enumerate(self.loader):
+        for i, (position, velocity, torque, jacobian, time) in enumerate(self.loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
             posvel = torch.cat((position, velocity), axis=1)
@@ -99,7 +99,7 @@ class jointTester(object):
                 test_loss[j] = loss.item()
 
         if verbose:
-            return test_loss, pred.detach().cpu(), jacobian
+            return test_loss, pred.detach().cpu(), jacobian, time
         return test_loss
 
 class jointLearner(object):
@@ -182,7 +182,7 @@ class jointLearner(object):
 
     def step(self, loader, tq, train=False):
         step_loss = 0
-        for i, (position, velocity, torque, jacobian) in enumerate(loader):
+        for i, (position, velocity, torque, jacobian, time) in enumerate(loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
             posvel = torch.cat((position, velocity), axis=1)
@@ -212,7 +212,7 @@ class trocarLearner(jointLearner):
 
     def step(self, loader, tq, train=False):
         step_loss = 0
-        for i, (position, velocity, torque, jacobian) in enumerate(loader):
+        for i, (position, velocity, torque, jacobian, time) in enumerate(loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
             posvel = torch.cat((position, velocity), axis=1)
@@ -246,7 +246,7 @@ class trocarTester(jointTester):
     def test(self, verbose=True):
         uncorrected_loss = torch.zeros(self.num_joints)
         corrected_loss = torch.zeros(self.num_joints)
-        for i, (position, velocity, torque, jacobian) in enumerate(self.loader):
+        for i, (position, velocity, torque, jacobian, time) in enumerate(self.loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
             posvel = torch.cat((position, velocity), axis=1)
@@ -268,3 +268,51 @@ class trocarTester(jointTester):
             return uncorrected_loss, corrected_loss, torque.detach().cpu(), fs_torque.detach().cpu(), pred.detach().cpu()
         return uncorrected_loss, corrected_loss
     
+
+class forceTester(object):
+
+    def __init__(self, data, folder, network, window, skip, out_joints,
+                 in_joints, batch_size, device):
+        path = '../data/csv/test/' + data + '/force_sensor/'
+        dataset = indirectForceDataset(path, window, skip, in_joints)
+        self.loader = DataLoader(dataset=dataset, batch_size = batch_size, shuffle=False)
+
+        self.root = Path('checkpoints' ) 
+        self.model_root = self.root / "models_indirect" / folder
+        
+        self.num_joints = len(out_joints)
+        self.joints = out_joints
+        self.network = network.to(device)
+        self.device = device
+        self.loss_fn = nrmse_loss
+
+    def load_prev(self, epoch):
+        if epoch == 0:
+            model_path = self.model_root / 'model_joint_best.pt'
+        else:
+            model_path = self.model_root / 'model_joint_{}.pt'.format(epoch)
+        if model_path.exists():
+            state = torch.load(str(model_path))
+            self.network.load_state_dict(state['model'])
+            print('Restored model, epoch {}'.format(epoch))
+            self.network.eval()
+        else:
+            print('Failed to restore model')
+            exit()
+            
+    def test(self, verbose=True):
+        test_loss = torch.zeros(self.num_joints)
+        for i, (position, velocity, torque, jacobian, time) in enumerate(self.loader):
+            position = position.to(self.device)
+            velocity = velocity.to(self.device)
+            posvel = torch.cat((position, velocity), axis=1)
+            torque = torque.to(self.device)[:,self.joints]
+            
+            pred = self.network(posvel).detach()
+            for j in range(self.num_joints):
+                loss = self.loss_fn(pred[:,j], torque[:,j]).detach()
+                test_loss[j] = loss.item()
+
+        if verbose:
+            return test_loss, pred.detach().cpu(), jacobian, time
+        return test_loss

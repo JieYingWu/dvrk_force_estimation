@@ -55,7 +55,7 @@ def main():
 
     print("Loaded a " + data + " model")
     model.load_prev(epoch_to_use)
-    test_loss = model.test() 
+    test_loss, pred, jacobian, time = model.test() 
     print('Test loss: ', test_loss)
     
 if __name__ == "__main__":

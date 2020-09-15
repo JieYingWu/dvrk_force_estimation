@@ -103,15 +103,20 @@ class RosbagParser():
         print("Processed state joint current: count: {}".format(length_state_joint_current))
         print("Processed Jacobian: count: {}".format(length_jacobian))
         print("Processed cartesian: count: {}".format(length_cartesian))
-        
+
+        start_time = joint_timestamps[0]
+        joint_timestamps = np.array(joint_timestamps) - start_time
+        jacobian_timestamps = np.array(jacobian_timestamps) - start_time
         joints = np.column_stack((joint_timestamps, joint_position, joint_velocity, joint_effort))
-        if length_force_sensor: 
+        if length_force_sensor:
+            force_sensor_timestamps = np.array(force_sensor_timestamps) - start_time
             force_sensor = np.column_stack((force_sensor_timestamps,force_sensor))
         else:
             force_sensor = None
             
         jacobian = np.column_stack((jacobian_timestamps, jacobian))
-        if length_cartesian: 
+        if length_cartesian:
+            cartesian_timestamps = np.array(cartesian_timestamps) - start_time
             cartesian = np.column_stack((cartesian_timestamps, cartesian))
         else:
             cartesian = None

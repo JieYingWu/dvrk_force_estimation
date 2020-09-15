@@ -5,7 +5,7 @@ from pathlib import Path
 from dataset import indirectDataset
 from network import armNetwork, insertionNetwork, wristNetwork
 from torch.utils.data import DataLoader
-from utils import load_model, jointTester
+from utils import load_model, jointTester, forceTester
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 data = sys.argv[1]
@@ -26,10 +26,10 @@ skip = 2
 folder = data + "_arm_window"+str(window)+'_'+str(skip)
 
 arm_network = armNetwork(window)    
-model = jointTester(data, folder, arm_network, window, skip, out_joints, in_joints, batch_size, device)
+model = forceTester(data, folder, arm_network, window, skip, out_joints, in_joints, batch_size, device)
 model.load_prev(epoch_to_use)
-test_loss[0:2], pred, jacobian = model.test()
-arm_pred = np.concatenate((pred.numpy(), jacobian.numpy()), axis=1)
+test_loss[0:2], pred, jacobian, time = model.test()
+arm_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
     
 #############################################
 ## Load free space insertion model
@@ -43,10 +43,10 @@ skip = 2
 folder = data + "_insertion_window"+str(window)+'_'+str(skip)
 
 insertion_network = insertionNetwork(window)
-model = jointTester(data, folder, insertion_network, window, skip, out_joints, in_joints, batch_size, device)
+model = forceTester(data, folder, insertion_network, window, skip, out_joints, in_joints, batch_size, device)
 model.load_prev(epoch_to_use)
-test_loss[2], pred, jacobian = model.test()
-insertion_pred = np.concatenate((pred.numpy(), jacobian.numpy()), axis=1)
+test_loss[2], pred, jacobian, time = model.test()
+insertion_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
 
 #############################################
 ## Load free space wrist model
@@ -60,10 +60,10 @@ skip = 1
 folder = data + "_wrist_window"+str(window)+'_'+str(skip)
 
 wrist_network = wristNetwork(window, 3)
-model = jointTester(data, folder, wrist_network, window, skip, out_joints, in_joints, batch_size, device)
+model = forceTester(data, folder, wrist_network, window, skip, out_joints, in_joints, batch_size, device)
 model.load_prev(epoch_to_use)
-test_loss[3:], pred, jacobian = model.test()
-wrist_pred = np.concatenate((pred.numpy(), jacobian.numpy()), axis=1)
+test_loss[3:], pred, jacobian, time = model.test()
+wrist_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
 
 path = Path('../results/'+data +'_torques')
 try:
