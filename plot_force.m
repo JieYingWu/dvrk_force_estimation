@@ -20,7 +20,21 @@ end
 length = size(joint_data);
 length = length(1);
 all_torques = zeros(length, 6);
+all_jacobians = zeros(length, 36);
+all_forces = zeros(length, 6);
+
 all_torques(length - size(arm_torque, 1) + 1:end, 1:2) = arm_torque(:,2:3);
 all_torques(length - size(insertion_torque, 1) + 1:end, 3) = insertion_torque(:,2);
 all_torques(length - size(wrist_torque, 1) + 1:end, 4:6) = wrist_torque(:,2:4);
-all_jacobians = wrist_torque(jacobian
+all_jacobians(length - size(wrist_torque, 1) + 1:end, :) = wrist_torque(:, 5:end);
+
+for i = 1:length
+    J = inv(reshape(all_jacobians(i,:), 6, 6)')';
+    all_forces(i,:)  = J * all_torques(i,:)';
+end
+
+axis_to_plot = 3;
+figure
+plot(joint_data(:,1), all_forces(:,axis_to_plot), 'r')
+hold on
+plot(force_data(:,1), force_data(:,axis_to_plot+1), 'b')
