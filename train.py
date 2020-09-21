@@ -58,7 +58,7 @@ def main():
         return
     
     print("Loaded a " + data + " model")
-    use_previous_model = True
+    use_previous_model = False
     epoch_to_use = 650
 
     if use_previous_model:

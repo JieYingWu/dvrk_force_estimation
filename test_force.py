@@ -12,7 +12,7 @@ data = sys.argv[1]
 epoch_to_use = int(sys.argv[2])
 batch_size = 1000000
 test_loss = torch.zeros(6)
-path = '../data/csv/test/' + data + '/no_contact/'
+path = '../data/csv/test/' + data + '/force_sensor/'
 
 #############################################
 ## Load free space arm model
@@ -65,7 +65,7 @@ model.load_prev(epoch_to_use)
 test_loss[3:], pred, jacobian, time = model.test()
 wrist_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
 
-path = Path('../results/no_contact/'+data +'_torques')
+path = Path('../results/with_contact/'+data +'_torques')
 try:
     path.mkdir(mode=0o777, parents=False)
 except OSError:

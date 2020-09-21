@@ -71,7 +71,6 @@ def main():
     uncorrected_loss, corrected_loss, torque, fs_pred, pred = model.test(True)
 
     all_torque = torch.cat((torque, fs_pred, pred), axis=1).numpy()
-    np.savetxt('generated/' + joint_name + '_torcar_pred.csv', all_torque, delimiter=',')
 
     print('Uncorrected loss: ', uncorrected_loss)
     print('Corrected loss: ', corrected_loss)

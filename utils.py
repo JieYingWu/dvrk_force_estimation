@@ -57,9 +57,8 @@ save = lambda ep, model, model_path, error, optimizer, scheduler: torch.save({
 class jointTester(object):
 
     def __init__(self, data, folder, network, window, skip, out_joints,
-                 in_joints, batch_size, device):
-        path = '../data/csv/test/' + data + '/no_contact/'
-        dataset = indirectDataset(path, window, skip, in_joints)
+                 in_joints, batch_size, device, path):
+        dataset = indirectForceDataset(path, window, skip, in_joints)
         self.loader = DataLoader(dataset=dataset, batch_size = batch_size, shuffle=False)
 
         self.root = Path('checkpoints' ) 
@@ -237,9 +236,9 @@ class trocarLearner(jointLearner):
 class trocarTester(jointTester):
 
     def __init__(self, data, folder, network, window, skip, out_joints,
-                 in_joints, batch_size, device, fs_network):
+                 in_joints, batch_size, device, fs_network, path):
         super(trocarTester, self).__init__(data, folder, network, window, skip, out_joints,
-                                           in_joints, batch_size, device)
+                                           in_joints, batch_size, device, path)
         
         self.fs_network = fs_network
 
@@ -265,54 +264,7 @@ class trocarTester(jointTester):
                 corrected_loss[j] += loss.item()
 
         if verbose:
-            return uncorrected_loss, corrected_loss, torque.detach().cpu(), fs_torque.detach().cpu(), pred.detach().cpu()
+            return uncorrected_loss, corrected_loss, torque.detach().cpu(), fs_torque.detach().cpu(), pred.detach().cpu(), jacobian, time
         return uncorrected_loss, corrected_loss
     
 
-class forceTester(object):
-
-    def __init__(self, data, folder, network, window, skip, out_joints,
-                 in_joints, batch_size, device):
-        path = '../data/csv/test/' + data + '/force_sensor/'
-        dataset = indirectForceDataset(path, window, skip, in_joints)
-        self.loader = DataLoader(dataset=dataset, batch_size = batch_size, shuffle=False)
-
-        self.root = Path('checkpoints' ) 
-        self.model_root = self.root / "models_indirect" / folder
-        
-        self.num_joints = len(out_joints)
-        self.joints = out_joints
-        self.network = network.to(device)
-        self.device = device
-        self.loss_fn = nrmse_loss
-
-    def load_prev(self, epoch):
-        if epoch == 0:
-            model_path = self.model_root / 'model_joint_best.pt'
-        else:
-            model_path = self.model_root / 'model_joint_{}.pt'.format(epoch)
-        if model_path.exists():
-            state = torch.load(str(model_path))
-            self.network.load_state_dict(state['model'])
-            print('Restored model, epoch {}'.format(epoch))
-            self.network.eval()
-        else:
-            print('Failed to restore model')
-            exit()
-            
-    def test(self, verbose=True):
-        test_loss = torch.zeros(self.num_joints)
-        for i, (position, velocity, torque, jacobian, time) in enumerate(self.loader):
-            position = position.to(self.device)
-            velocity = velocity.to(self.device)
-            posvel = torch.cat((position, velocity), axis=1)
-            torque = torque.to(self.device)[:,self.joints]
-            
-            pred = self.network(posvel).detach()
-            for j in range(self.num_joints):
-                loss = self.loss_fn(pred[:,j], torque[:,j]).detach()
-                test_loss[j] = loss.item()
-
-        if verbose:
-            return test_loss, pred.detach().cpu(), jacobian, time
-        return test_loss
