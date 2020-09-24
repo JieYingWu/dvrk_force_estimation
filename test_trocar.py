@@ -8,6 +8,8 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 batch_size = 1000000
 fs_epoch = 1000
+contact = 'with_contact' # 'no_contact'
+path = '../data/csv/test/trocar/' + contact + '/'
 
 def make_arm_model(window, skip):
     out_joints = [0,1]
@@ -19,7 +21,7 @@ def make_arm_model(window, skip):
 
     folder = "trocar_arm_2_part_"+str(window) + '_' + str(skip)
     network = armTrocarNetwork(window)
-    model = trocarTester("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network)
+    model = trocarTester("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network, path)
 
     return model
 
@@ -33,7 +35,7 @@ def make_insertion_model(window, skip):
 
     folder = "trocar_insertion_2_part_"+str(window) + '_' + str(skip)
     network = insertionTrocarNetwork(window)
-    model = trocarTester("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network)
+    model = trocarTester("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network, path)
     return model
 
 def make_wrist_model(window, skip):
@@ -46,7 +48,7 @@ def make_wrist_model(window, skip):
 
     folder = "trocar_wrist_2_part_"+str(window) + '_' + str(skip)
     network = wristTrocarNetwork(window, len(in_joints))
-    model = trocarTester("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network)
+    model = trocarTester("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network, path)
     return model
 
 def main():

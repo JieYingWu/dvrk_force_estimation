@@ -13,7 +13,8 @@ uncorrected_loss = torch.zeros(6)
 corrected_loss = torch.zeros(6)
 epoch = 1000
 trocar_epoch = (sys.argv[1])
-path = '../data/csv/test/trocar/no_contact/'
+contact = 'with_contact'
+path = '../data/csv/test/trocar/' + contact + '/'
 
 #####################################################
 ## Load free space and trocar arm model and run
@@ -33,7 +34,10 @@ network = armTrocarNetwork(window)
         
 model = trocarTester("trocar", trocar_folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network, path)
 model.load_prev(trocar_epoch)
-uncorrected_loss[0:2], corrected_loss[0:2], arm_torque, arm_fs_pred, arm_pred, jacobian, time = model.test()
+uncorrected_loss[0:2], corrected_loss[0:2], torque, fs_pred, pred, jacobian, time = model.test()
+arm_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
+arm_fs_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
+
 
 #####################################################
 ## Load free space and trocar insertion model and run
@@ -52,7 +56,9 @@ fs_network = load_model(fs_folder, epoch, fs_network, device)
 network = insertionTrocarNetwork(window)
 model = trocarTester("trocar", trocar_folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network, path)
 model.load_prev(trocar_epoch)
-uncorrected_loss[2], corrected_loss[2], insertion_torque, insertion_fs_pred, insertion_pred, jacobian, time = model.test()
+uncorrected_loss[2], corrected_loss[2], torque, fs_pred, pred, jacobian, time = model.test()
+insertion_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
+insertion_fs_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
 
 #############################################
 ## Load free space and trocar wrist model
@@ -72,32 +78,33 @@ fs_network = load_model(fs_folder, epoch, fs_network, device)
 network = wristTrocarNetwork(window, len(in_joints))
 model = trocarTester("trocar", trocar_folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network, path)
 model.load_prev(trocar_epoch)
-uncorrected_loss[3:6], corrected_loss[3:6], wrist_torque, wrist_fs_pred, wrist_pred, jacobian, time = model.test()
+uncorrected_loss[3:6], corrected_loss[3:6], torque, fs_pred, pred, jacobian, time = model.test()
+wrist_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
+wrist_fs_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
 
 #############################################
 ## Save results and print out
 #############################################
 
-path = Path('../results/no_contact/uncorrected_torques')
+path = Path('..') / 'results' / contact / 'uncorrected_torques'
 try:
     path.mkdir(mode=0o777, parents=False)
 except OSError:
     print("Result path exists")
     
-np.savetxt(path / 'arm.csv', np.concatenate((arm_torque, arm_fs_pred), axis=1))
-np.savetxt(path / 'insertion.csv', np.concatenate((insertion_torque, insertion_fs_pred), axis=1))
-np.savetxt(path / 'wrist.csv', np.concatenate((wrist_torque, wrist_fs_pred), axis=1))
+np.savetxt(path / 'arm.csv', arm_fs_pred)
+np.savetxt(path / 'insertion.csv', insertion_fs_pred)
+np.savetxt(path / 'wrist.csv', wrist_fs_pred)
 
-
-path = Path('../results/no_contact/corrected_torques')
+path = Path('..') / 'results' / contact / 'corrected_torques'
 try:
     path.mkdir(mode=0o777, parents=False)
 except OSError:
     print("Result path exists")
     
-np.savetxt(path / 'arm.csv', np.concatenate((arm_torque, arm_pred), axis=1))
-np.savetxt(path / 'insertion.csv', np.concatenate((insertion_torque, insertion_pred), axis=1))
-np.savetxt(path / 'wrist.csv', np.concatenate((wrist_torque, wrist_pred), axis=1))
+np.savetxt(path / 'arm.csv', arm_pred)
+np.savetxt(path / 'insertion.csv', insertion_pred)
+np.savetxt(path / 'wrist.csv', wrist_pred)
 
 print('Uncorrected loss: t1=%f, t2=%f, f3=%f, t4=%f, t5=%f, t6=%f, mean=%f' % (uncorrected_loss[0], uncorrected_loss[1], uncorrected_loss[2], uncorrected_loss[3], uncorrected_loss[4], uncorrected_loss[5], torch.mean(uncorrected_loss)))
 

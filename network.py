@@ -32,6 +32,7 @@ class wristNetwork(nn.Module):
         x = self.activation(x)
         x = self.bn4(x)
         x = self.layer5(x)
+#        x = self.sigmoid()
         return x
 
 class wristTrocarNetwork(nn.Module):

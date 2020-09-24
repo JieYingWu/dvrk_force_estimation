@@ -1,5 +1,5 @@
-data = 'trocar';
-contact = 'no_contact';
+data = 'free_space';
+contact = 'with_contact';
 force_path = ['../data/csv/test/', data, '/', contact, '/sensor/'];
 joint_path = ['../data/csv/test/', data, '/', contact, '/joints/'];
 joint_folder = dir(joint_path);
@@ -12,7 +12,6 @@ for i = 3%:length(joint_folder)
     joint_data = [joint_data; temp_data];
 end
 
-data = 'trocar';
 arm_torque = readmatrix(['../results/', contact, '/', data, '_torques/arm.csv']);
 insertion_torque = readmatrix(['../results/', contact, '/', data, '_torques/insertion.csv']);
 wrist_torque = readmatrix(['../results/', contact, '/', data, '_torques/wrist.csv']);
@@ -35,9 +34,12 @@ for i = 1:length
     all_forces(i,:)  = J * all_torques(i,:)';
 end
 
-axis_to_plot = [1,2,3];
+axis_to_plot = [3];
+predicted = all_forces(:,axis_to_plot);
+predicted(predicted > 0) = 0;
+
 figure
-plot(joint_data(:,1), get_magnitude(all_forces(:,axis_to_plot)), 'r')
+plot(joint_data(:,1), predicted, 'r')
 title(data)
 hold on
-plot(force_data(:,1), get_magnitude(force_data(:,axis_to_plot+1)), 'b')
+plot(force_data(:,1), force_data(:,axis_to_plot+1), 'b')

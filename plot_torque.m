@@ -20,9 +20,9 @@ all_torques(length - size(arm_torque, 1) + 1:end, 1:2) = arm_torque(:,2:3);
 all_torques(length - size(insertion_torque, 1) + 1:end, 3) = insertion_torque(:,2);
 all_torques(length - size(wrist_torque, 1) + 1:end, 4:6) = wrist_torque(:,2:4);
 measured_torques = joint_data(:,14:19);
-axis_to_plot = 1;
+axis_to_plot = 3;
 
 figure
-plot(all_torques(:, axis_to_plot), 'r')
-hold on
+%plot(all_torques(:, axis_to_plot), 'r')
+%hold on
 plot(measured_torques(:, axis_to_plot), 'b')
