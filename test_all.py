@@ -60,7 +60,7 @@ skip = 1
 
 folder = data + "_wrist_window"+str(window)+'_'+str(skip)
 
-wrist_network = wristNetwork(window, 3)
+wrist_network = wristNetwork(window, len(in_joints))
 model = jointTester(data, folder, wrist_network, window, skip, out_joints, in_joints, batch_size, device, path)
 model.load_prev(epoch_to_use)
 test_loss[3:], pred, jacobian, time = model.test()

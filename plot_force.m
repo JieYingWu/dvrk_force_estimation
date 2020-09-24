@@ -1,4 +1,4 @@
-data = 'free_space';
+data = 'trocar'; %'free\_space';
 contact = 'with_contact';
 force_path = ['../data/csv/test/', data, '/', contact, '/sensor/'];
 joint_path = ['../data/csv/test/', data, '/', contact, '/joints/'];
@@ -12,6 +12,7 @@ for i = 3%:length(joint_folder)
     joint_data = [joint_data; temp_data];
 end
 
+data = 'corrected';
 arm_torque = readmatrix(['../results/', contact, '/', data, '_torques/arm.csv']);
 insertion_torque = readmatrix(['../results/', contact, '/', data, '_torques/insertion.csv']);
 wrist_torque = readmatrix(['../results/', contact, '/', data, '_torques/wrist.csv']);
