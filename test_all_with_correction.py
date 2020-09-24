@@ -1,7 +1,8 @@
+import os
 import sys
 import torch
 import numpy as np
-from pathlib import Path
+from os.path import join
 from dataset import indirectDataset
 from network import armNetwork, insertionNetwork, wristNetwork, armTrocarNetwork, insertionTrocarNetwork, wristTrocarNetwork
 from torch.utils.data import DataLoader
@@ -14,7 +15,7 @@ corrected_loss = torch.zeros(6)
 epoch = 1000
 trocar_epoch = (sys.argv[1])
 contact = 'with_contact'
-path = '../data/csv/test/trocar/' + contact + '/'
+path = join('..', 'data', 'csv', 'test', 'trocar', contact)
 
 #####################################################
 ## Load free space and trocar arm model and run
@@ -86,25 +87,25 @@ wrist_fs_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy(
 ## Save results and print out
 #############################################
 
-path = Path('..') / 'results' / contact / 'uncorrected_torques'
+path = join('..', 'results', contact, 'uncorrected_torques')
 try:
-    path.mkdir(mode=0o777, parents=False)
+    os.mkdir(path)
 except OSError:
     print("Result path exists")
     
-np.savetxt(path / 'arm.csv', arm_fs_pred)
-np.savetxt(path / 'insertion.csv', insertion_fs_pred)
-np.savetxt(path / 'wrist.csv', wrist_fs_pred)
+np.savetxt(join(path, 'arm.csv'), arm_fs_pred)
+np.savetxt(join(path, 'insertion.csv'), insertion_fs_pred)
+np.savetxt(join(path, 'wrist.csv'), wrist_fs_pred)
 
-path = Path('..') / 'results' / contact / 'corrected_torques'
+path = join('..', 'results', contact, 'corrected_torques')
 try:
-    path.mkdir(mode=0o777, parents=False)
+    os.mkdir(path)
 except OSError:
     print("Result path exists")
     
-np.savetxt(path / 'arm.csv', arm_pred)
-np.savetxt(path / 'insertion.csv', insertion_pred)
-np.savetxt(path / 'wrist.csv', wrist_pred)
+np.savetxt(join(path, 'arm.csv'), arm_pred)
+np.savetxt(join(path, 'insertion.csv'), insertion_pred)
+np.savetxt(join(path, 'wrist.csv'), wrist_pred)
 
 print('Uncorrected loss: t1=%f, t2=%f, f3=%f, t4=%f, t5=%f, t6=%f, mean=%f' % (uncorrected_loss[0], uncorrected_loss[1], uncorrected_loss[2], uncorrected_loss[3], uncorrected_loss[4], uncorrected_loss[5], torch.mean(uncorrected_loss)))
 

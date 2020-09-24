@@ -1,7 +1,8 @@
+import os
 import sys
 import torch
 import numpy as np
-from pathlib import Path
+from os.path import join
 from dataset import indirectDataset
 from network import armNetwork, insertionNetwork, wristNetwork
 from torch.utils.data import DataLoader
@@ -12,8 +13,8 @@ data = sys.argv[1]
 epoch_to_use = int(sys.argv[2])
 batch_size = 1000000
 test_loss = torch.zeros(6)
-contact = 'with_contact' # 'no_contact'
-path = '../data/csv/test/' + data + '/' + contact + '/'
+contact = 'no_contact'
+path = join('..', 'data', 'csv', 'test', data, contact)
 
 #############################################
 ## Load free space arm model
@@ -66,13 +67,13 @@ model.load_prev(epoch_to_use)
 test_loss[3:], pred, jacobian, time = model.test()
 wrist_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
 
-path = Path('../results/' + contact + '/'+data +'_torques')
+path = join('..', 'results', contact, (data +'_torques'))
 try:
-    path.mkdir(mode=0o777, parents=False)
+    os.mkdir(path)
 except OSError:
     print("Result path exists")
     
-np.savetxt(path / 'arm.csv', arm_pred)
-np.savetxt(path / 'insertion.csv', insertion_pred)
-np.savetxt(path / 'wrist.csv', wrist_pred)
+np.savetxt(join(path, 'arm.csv'), arm_pred)
+np.savetxt(join(path, 'insertion.csv'), insertion_pred)
+np.savetxt(join(path, 'wrist.csv'), wrist_pred)
 print('Test loss: t1=%f, t2=%f, f3=%f, t4=%f, t5=%f, t6=%f, mean=%f' % (test_loss[0], test_loss[1], test_loss[2], test_loss[3], test_loss[4], test_loss[5], (torch.mean(test_loss))))

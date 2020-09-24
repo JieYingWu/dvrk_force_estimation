@@ -106,8 +106,8 @@ class jointLearner(object):
     def __init__(self, data, folder, network, window, skip, out_joints,
                  in_joints, batch_size, lr, device):
 
-        self.train_path = '../data/csv/train/' + data + '/'
-        self.val_path = '../data/csv/val/' + data + '/'
+        self.train_path = join('..', 'data', 'csv', 'train', data)
+        self.val_path = join('..','data','csv','val', data)
         self.root = Path('checkpoints' ) 
         self.model_root = self.root / "models_indirect" / folder
 
