@@ -44,6 +44,17 @@ def make_wrist_model(data):
     model = jointLearner(data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
     return model
 
+def make_jaw_model(data):
+    out_joints = [6]
+    in_joints = [0,1,2,3,4,5]
+    window = 5
+    skip = 1
+    folder = data + "_jaw_window" + str(window) + '_' + str(skip)# + "_all_joints"
+
+    network = wristNetwork(window, len(in_joints)+1)
+    model = jointLearner(data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
+    return model
+
 def main():
     joint_name = sys.argv[1]
     data = sys.argv[2]
@@ -54,6 +65,8 @@ def main():
         model = make_insertion_model(data)
     elif joint_name == "wrist":
         model = make_wrist_model(data)
+    elif joint_name == "jaw":
+        model = make_jaw_model(data)
     else:
         print("Unknown joint name")
         return

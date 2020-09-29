@@ -58,6 +58,20 @@ class indirectDataset(Dataset):
         jacobian = self.jacobian[end-self.skip, :]
         return position, velocity, torque, jacobian, time
 
+class indirectJawDataset(indirectDataset):
+    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], rnn=False):
+        super(indirectJawDataset, self).__init__(path, window, skip, indices, rnn)
+        all_jaw = np.array([])
+        jaw_path = join(path, 'jaw')
+        for cur_file in os.listdir(jaw_path):
+            jaw = np.loadtxt(join(jaw_path, cur_file), delimiter=',')
+            all_jaw = np.vstack((all_jaw, jaw)) if all_jaw.size else jaw
+
+        all_jaw = all_jaw.astype('float32')
+        self.position = np.concatenate((self.position, all_jaw[:,2:3]), axis=1)
+        self.velocity = np.concatenate((self.velocity, all_jaw[:,3:4]), axis=1)
+        self.torque = np.concatenate((self.torque, all_jaw[:,4:5]), axis=1)
+    
 class indirectForceDataset(indirectDataset):
     def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], rnn=False):
         super(indirectForceDataset, self).__init__(path, window, skip, indices, rnn)

@@ -156,7 +156,6 @@ class armTrocarNetwork(nn.Module):
         x = self.layer3(x)
         return x
     
-
 # Vaguely inspired by LSTM from https://github.com/BerkeleyAutomation/dvrkCalibration/blob/cec2b8096e3a891c4dcdb09b3161e2a407fee0ee/experiment/3_training/modeling/models.py
 class torqueLstmNetwork(nn.Module):
     def __init__(self, window, joints=6, hidden_dim=64, num_layers=2):
@@ -208,3 +207,4 @@ class forceNetwork(nn.Module):
 #        x = self.layer7(x)
         
         return x
+
