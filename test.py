@@ -29,11 +29,21 @@ def make_insertion_model(data, window, skip, path):
 
 def make_wrist_model(data, window, skip, path):
     out_joints = [3,4,5]
-    in_joints = [3,4,5]
+    in_joints = [0,1,2,3,4,5]
     folder = data + "_wrist_window" + str(window) + '_' + str(skip)# + "_all_joints"
 
     network = wristNetwork(window, len(in_joints))
     model = jointTester(data, folder, network, window, skip, out_joints, in_joints, batch_size, device, path)
+    return model
+
+def make_jaw_model(data, window, skip, path):
+    path = '../data/csv/test_jaw/' + data + '/no_contact/'
+    out_joints = [6]
+    in_joints = [0,1,2,3,4,5]
+    folder = data + "_jaw_window" + str(window) + '_' + str(skip)# + "_all_joints"
+
+    network = wristNetwork(window, len(in_joints)+1)
+    model = jawTester(data, folder, network, window, skip, out_joints, in_joints, batch_size, device, path)
     return model
 
 def main():
@@ -50,6 +60,8 @@ def main():
         model = make_insertion_model(data, window, skip, path)
     elif joint_name == "wrist":
         model = make_wrist_model(data, window, skip, path)
+    elif joint_name == "jaw":
+        model = make_jaw_model(data, window, skip, path)
     else:
         print("Unknown joint name")
         return

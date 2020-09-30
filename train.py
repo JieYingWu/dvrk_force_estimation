@@ -35,7 +35,7 @@ def make_insertion_model(data):
 
 def make_wrist_model(data):
     out_joints = [3,4,5]
-    in_joints = [3,4,5]
+    in_joints = [0,1,2,3,4,5]
     window = 5
     skip = 1
     folder = data + "_wrist_window" + str(window) + '_' + str(skip)# + "_all_joints"
@@ -52,7 +52,7 @@ def make_jaw_model(data):
     folder = data + "_jaw_window" + str(window) + '_' + str(skip)# + "_all_joints"
 
     network = wristNetwork(window, len(in_joints)+1)
-    model = jointLearner(data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
+    model = jawLearner(data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
     return model
 
 def main():

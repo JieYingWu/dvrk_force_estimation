@@ -2,7 +2,7 @@ from os.path import join
 import tqdm
 import torch
 import torch.nn as nn
-from dataset import indirectDataset, indirectJawDataset, indirectForceDataset
+from dataset import *
 from pathlib import Path
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -107,8 +107,8 @@ class jointLearner(object):
     def __init__(self, data, folder, network, window, skip, out_joints,
                  in_joints, batch_size, lr, device):
 
-        self.train_path = join('..', 'data', 'csv', 'train_jaw', data)
-        self.val_path = join('..','data','csv','val_jaw', data)
+        self.train_path = join('..', 'data', 'csv', 'train', data)
+        self.val_path = join('..','data','csv','val', data)
         self.root = Path('checkpoints' ) 
         self.model_root = self.root / "models_indirect" / folder
 
@@ -126,8 +126,8 @@ class jointLearner(object):
         self.optimizer = torch.optim.SGD(self.network.parameters(), lr)
         self.scheduler = ReduceLROnPlateau(self.optimizer, verbose=True)
 
-        train_dataset = indirectJawDataset(self.train_path, window, skip, in_joints)
-        val_dataset = indirectJawDataset(self.val_path, window, skip, in_joints)
+        train_dataset = indirectDataset(self.train_path, window, skip, in_joints)
+        val_dataset = indirectDataset(self.val_path, window, skip, in_joints)
         self.train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
         self.val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False)
 
@@ -269,3 +269,27 @@ class trocarTester(jointTester):
         return uncorrected_loss, corrected_loss
     
 
+
+class jawLearner(jointLearner):
+    
+    def __init__(self, data, folder, network, window, skip, out_joints,
+                 in_joints, batch_size, lr, device):
+
+        super(jawLearner, self).__init__(data, folder, network, window, skip, out_joints,
+                                           in_joints, batch_size, lr, device)
+        self.train_path = join('..', 'data', 'csv', 'train_jaw', data)
+        self.val_path = join('..','data','csv','val_jaw', data)
+
+        train_dataset = indirectJawDataset(self.train_path, window, skip, in_joints)
+        val_dataset = indirectJawDataset(self.val_path, window, skip, in_joints)
+        self.train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+        self.val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False)
+
+class jawTester(jointTester):
+
+    def __init__(self, data, folder, network, window, skip, out_joints,
+                 in_joints, batch_size, device, path):
+        super(jawTester, self).__init__(data, folder, network, window, skip, out_joints,
+                 in_joints, batch_size, device, path)
+        dataset = indirectJawForceDataset(path, window, skip, in_joints)
+        self.loader = DataLoader(dataset=dataset, batch_size = batch_size, shuffle=False)
