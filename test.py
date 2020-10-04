@@ -42,7 +42,7 @@ def make_jaw_model(data, window, skip, path):
     in_joints = [0,1,2,3,4,5]
     folder = data + "_jaw_window" + str(window) + '_' + str(skip)# + "_all_joints"
 
-    network = wristNetwork(window, len(in_joints)+1)
+    network = insertionNetwork(window, len(in_joints)+1)
     model = jawTester(data, folder, network, window, skip, out_joints, in_joints, batch_size, device, path)
     return model
 
@@ -70,6 +70,10 @@ def main():
     model.load_prev(epoch_to_use)
     test_loss, pred, jacobian, time = model.test() 
     print('Test loss: ', test_loss)
+
+    results = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
+    path = join('..', 'results', 'no_contact', (data +'_torques'), (joint_name + '.csv'))
+    np.savetxt(path, results)
     
 if __name__ == "__main__":
     main()

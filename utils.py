@@ -104,11 +104,9 @@ class jointTester(object):
 
 class jointLearner(object):
     
-    def __init__(self, data, folder, network, window, skip, out_joints,
+    def __init__(self, train_path, val_path, data, folder, network, window, skip, out_joints,
                  in_joints, batch_size, lr, device):
 
-        self.train_path = join('..', 'data', 'csv', 'train', data)
-        self.val_path = join('..','data','csv','val', data)
         self.root = Path('checkpoints' ) 
         self.model_root = self.root / "models_indirect" / folder
 
@@ -126,8 +124,8 @@ class jointLearner(object):
         self.optimizer = torch.optim.SGD(self.network.parameters(), lr)
         self.scheduler = ReduceLROnPlateau(self.optimizer, verbose=True)
 
-        train_dataset = indirectDataset(self.train_path, window, skip, in_joints)
-        val_dataset = indirectDataset(self.val_path, window, skip, in_joints)
+        train_dataset = indirectDataset(train_path, window, skip, in_joints)
+        val_dataset = indirectDataset(val_path, window, skip, in_joints)
         self.train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
         self.val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False)
 
@@ -185,7 +183,7 @@ class jointLearner(object):
         for i, (position, velocity, torque, jacobian, time) in enumerate(loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
-            posvel = torch.cat((position, velocity), axis=1)
+            posvel = torch.cat((position, velocity), axis=1).contiguous()
             torque = torque.to(self.device)[:, self.joints]
 
             pred = self.network(posvel)
@@ -215,7 +213,7 @@ class trocarLearner(jointLearner):
         for i, (position, velocity, torque, jacobian, time) in enumerate(loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
-            posvel = torch.cat((position, velocity), axis=1)
+            posvel = torch.cat((position, velocity), axis=1).contiguous()
             torque = torque.to(self.device)[:, self.joints].squeeze()
 
             fs_torque = self.fs_network(posvel).squeeze().detach()
@@ -249,7 +247,7 @@ class trocarTester(jointTester):
         for i, (position, velocity, torque, jacobian, time) in enumerate(self.loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
-            posvel = torch.cat((position, velocity), axis=1)
+            posvel = torch.cat((position, velocity), axis=1).contiguous()
             torque = torque.to(self.device)[:,self.joints]
             
             fs_torque = self.fs_network(posvel).squeeze()
@@ -272,10 +270,10 @@ class trocarTester(jointTester):
 
 class jawLearner(jointLearner):
     
-    def __init__(self, data, folder, network, window, skip, out_joints,
+    def __init__(self, train_path, val_path, data, folder, network, window, skip, out_joints,
                  in_joints, batch_size, lr, device):
 
-        super(jawLearner, self).__init__(data, folder, network, window, skip, out_joints,
+        super(jawLearner, self).__init__(train_path, val_path, data, folder, network, window, skip, out_joints,
                                            in_joints, batch_size, lr, device)
         self.train_path = join('..', 'data', 'csv', 'train_jaw', data)
         self.val_path = join('..','data','csv','val_jaw', data)

@@ -10,11 +10,11 @@ from utils import load_model, jointTester
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 data = sys.argv[1]
-epoch_to_use = int(sys.argv[2])
+contact = sys.argv[2]
+epoch_to_use = int(sys.argv[3])
 batch_size = 1000000
 test_loss = torch.zeros(6)
-contact = 'no_contact'
-path = join('..', 'data', 'csv', 'test', data, contact)
+path = join('..', 'data', 'csv', 'test_7dof', data, contact)
 
 #############################################
 ## Load free space arm model
@@ -55,7 +55,7 @@ insertion_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy
 #############################################
 
 out_joints = [3,4,5]
-in_joints = [3,4,5]
+in_joints = [0,1,2,3,4,5]
 window = 5
 skip = 1
 

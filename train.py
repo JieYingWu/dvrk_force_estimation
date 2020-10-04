@@ -11,7 +11,7 @@ batch_size = 4096
 epochs = 1000
 validate_each = 5
 
-def make_arm_model(data):
+def make_arm_model(data, train_path, val_path):
     out_joints = [0,1]
     in_joints = [0,1,2,3,4,5]
     window = 10
@@ -19,10 +19,10 @@ def make_arm_model(data):
     folder = data + "_arm_window" + str(window) + '_' + str(skip)
 
     network = armNetwork(window)
-    model = jointLearner(data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
+    model = jointLearner(train_path, val_path, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
     return model
 
-def make_insertion_model(data):
+def make_insertion_model(data, train_path, val_path):
     window = 50
     skip = 2
     out_joints = [2]
@@ -30,10 +30,10 @@ def make_insertion_model(data):
     folder = data + "_insertion_window" + str(window) + '_' + str(skip)
 
     network = insertionNetwork(window)
-    model = jointLearner(data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
+    model = jointLearner(train_path, val_path, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
     return model
 
-def make_wrist_model(data):
+def make_wrist_model(data, train_path, val_path):
     out_joints = [3,4,5]
     in_joints = [0,1,2,3,4,5]
     window = 5
@@ -41,7 +41,7 @@ def make_wrist_model(data):
     folder = data + "_wrist_window" + str(window) + '_' + str(skip)# + "_all_joints"
 
     network = wristNetwork(window, len(in_joints))
-    model = jointLearner(data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
+    model = jointLearner(train_path, val_path, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
     return model
 
 def make_jaw_model(data):
@@ -51,20 +51,25 @@ def make_jaw_model(data):
     skip = 1
     folder = data + "_jaw_window" + str(window) + '_' + str(skip)# + "_all_joints"
 
-    network = wristNetwork(window, len(in_joints)+1)
-    model = jawLearner(data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
+
+    train = join('..', 'data', 'csv', 'train_jaw', data)
+    val = join('..','data','csv','val_jaw', data)
+    network = insertionNetwork(window, len(in_joints)+1)
+    model = jawLearner(train, val, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
     return model
 
 def main():
     joint_name = sys.argv[1]
     data = sys.argv[2]
+    train_path = join('..', 'data', 'csv', 'train', data)
+    val_path = join('..','data','csv','val', data)
 
     if joint_name == "arm":
-        model = make_arm_model(data)
+        model = make_arm_model(data, train_path, val_path)
     elif joint_name == "insertion":
-        model = make_insertion_model(data)
+        model = make_insertion_model(data, train_path, val_path)
     elif joint_name == "wrist":
-        model = make_wrist_model(data)
+        model = make_wrist_model(data, train_path, val_path)
     elif joint_name == "jaw":
         model = make_jaw_model(data)
     else:

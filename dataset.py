@@ -11,14 +11,11 @@ class indirectDataset(Dataset):
         all_cartesian = np.array([])
         all_jacobian = np.array([])
         joint_path = join(path, 'joints')
-#        cartesian_path = join(path, 'cartesian')
         jacobian_path = join(path, 'jacobian')
         for cur_file in os.listdir(joint_path):
-#            print(cur_file)
             joints = np.loadtxt(join(joint_path, cur_file), delimiter=',')
             all_joints = np.vstack((all_joints, joints)) if all_joints.size else joints
-#            cartesian = np.loadtxt(join(cartesian_path, cur_file), delimiter=',')
-#            all_cartesian = np.vstack((all_cartesian, cartesian)) if all_cartesian.size else cartesian
+
             jacobian = np.loadtxt(join(jacobian_path, cur_file), delimiter=',')
             all_jacobian = np.vstack((all_jacobian, jacobian)) if all_jacobian.size else jacobian
             
@@ -33,7 +30,6 @@ class indirectDataset(Dataset):
         if len(self.position.shape) < 2:
             self.position = np.expand_dims(self.position, axis=1)
             self.velocity = np.expand_dims(self.velocity, axis=1)
-#        self.cartesian = all_cartesian[:,1:].astype('float32')
         self.jacobian = all_jacobian[:,1:].astype('float32')
         self.window = window
         self.skip = skip
@@ -68,9 +64,9 @@ class indirectJawDataset(indirectDataset):
             all_jaw = np.vstack((all_jaw, jaw)) if all_jaw.size else jaw
 
         all_jaw = all_jaw.astype('float32')
-        self.position = np.concatenate((self.position, all_jaw[:,2:3]), axis=1)
-        self.velocity = np.concatenate((self.velocity, all_jaw[:,3:4]), axis=1)
-        self.torque = np.concatenate((self.torque, all_jaw[:,4:5]), axis=1)
+        self.position = np.concatenate((self.position, all_jaw[:,1:2]), axis=1)
+        self.velocity = np.concatenate((self.velocity, all_jaw[:,2:3]), axis=1)
+        self.torque = np.concatenate((self.torque, all_jaw[:,3:4]), axis=1)
     
 class indirectForceDataset(indirectDataset):
     def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], rnn=False):
@@ -104,6 +100,6 @@ class indirectJawForceDataset(indirectForceDataset):
             all_jaw = np.vstack((all_jaw, jaw)) if all_jaw.size else jaw
 
         all_jaw = all_jaw.astype('float32')
-        self.position = np.concatenate((self.position, all_jaw[:,2:3]), axis=1)
-        self.velocity = np.concatenate((self.velocity, all_jaw[:,3:4]), axis=1)
-        self.torque = np.concatenate((self.torque, all_jaw[:,4:5]), axis=1)
+        self.position = np.concatenate((self.position, all_jaw[:,1:2]), axis=1)
+        self.velocity = np.concatenate((self.velocity, all_jaw[:,2:3]), axis=1)
+        self.torque = np.concatenate((self.torque, all_jaw[:,3:4]), axis=1)
