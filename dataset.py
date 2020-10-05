@@ -27,6 +27,9 @@ class indirectDataset(Dataset):
         self.position = all_joints[:,position_indices].astype('float32')
         self.velocity = all_joints[:,velocity_indices].astype('float32')
         self.torque = all_joints[:,13:19].astype('float32')
+#        print(np.max(self.torque, axis=0))
+#        print(np.min(self.torque, axis=0))
+#        exit()
         if len(self.position.shape) < 2:
             self.position = np.expand_dims(self.position, axis=1)
             self.velocity = np.expand_dims(self.velocity, axis=1)

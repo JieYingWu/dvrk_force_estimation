@@ -11,66 +11,85 @@ epochs = 1000
 validate_each = 5
 fs_epoch = 1000
     
-def make_arm_model():
+def make_arm_model(train_path, val_path):
     out_joints = [0,1]
     in_joints = [0,1,2,3,4,5]
     window = 10
     skip = 2
     
     folder = "free_space_arm_window"+str(window) + "_" + str(skip)
-    fs_network = armNetwork(window)
+    fs_network = fsNetwork(window, len(in_joints), len(out_joints))
     fs_network = load_model(folder, fs_epoch, fs_network, device)
 
     folder = "trocar_arm_2_part_"+str(window) + '_' + str(skip)
-    network = armTrocarNetwork(window)
-    model = trocarLearner("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, fs_network)
+    network = trocarNetwork(window, len(in_joints), len(out_joints))
+    model = trocarLearner(train_path, val_path, "trocar", folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, fs_network)
     return model
 
-def make_insertion_model():
+def make_insertion_model(train_path, val_path):
     window = 50
     skip = 2
     out_joints = [2]
     in_joints = [0,1,2,3,4,5]
     
     folder = "free_space_insertion_window"+str(window) + "_" + str(skip)
-    fs_network = insertionNetwork(window)
+    fs_network = fsNetwork(window, len(in_joints), len(out_joints))
     fs_network = load_model(folder, fs_epoch, fs_network, device)
 
     folder = "trocar_insertion_2_part_"+str(window) + '_' + str(skip)
-    network = insertionTrocarNetwork(window)
-    model = trocarLearner("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, fs_network)
+    network = trocarNetwork(window, len(in_joints), len(out_joints))
+    model = trocarLearner(train_path, val_path, "trocar", folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, fs_network)
     return model
 
-def make_wrist_model():
-    out_joints = [3,4,5]
-    in_joints = [3,4,5]
+def make_platform_model(train_path, val_path):
+    out_joints = [3]
+    in_joints = [0,1,2,3,4,5]
+    window = 5
+    skip = 1
+
+    folder = "free_space_platform_window"+str(window) + "_" + str(skip)
+    fs_network = fsNetwork(window, len(in_joints), len(out_joints))
+    fs_network = load_model(folder, fs_epoch, fs_network, device)
+
+    folder = "trocar_platform_2_part_"+str(window) + '_' + str(skip)
+    network = trocarNetwork(window, len(in_joints), len(out_joints))
+    model = trocarLearner(train_path, val_path, "trocar", folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, fs_network)
+    return model
+
+def make_wrist_model(train_path, val_path):
+    out_joints = [4,5]
+    in_joints = [0,1,2,3,4,5]
     window = 5
     skip = 1
 
     folder = "free_space_wrist_window"+str(window) + "_" + str(skip)
-    fs_network = wristNetwork(window, len(in_joints))
+    fs_network = fsNetwork(window, len(in_joints), len(out_joints))
     fs_network = load_model(folder, fs_epoch, fs_network, device)
 
     folder = "trocar_wrist_2_part_"+str(window) + '_' + str(skip)
-    network = wristTrocarNetwork(window, len(in_joints))
-    model = trocarLearner("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, fs_network)
+    network = trocarNetwork(window, len(in_joints), len(out_joints))
+    model = trocarLearner(train_path, val_path, "trocar", folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, fs_network)
     return model
 
 def main():
     joint_name = sys.argv[1]
-
+    train_path = join('..', 'data', 'csv', 'train', 'trocar')
+    val_path = join('..','data','csv','val', 'trocar')
+    
     if joint_name == "arm":
-        model = make_arm_model()
+        model = make_arm_model(train_path, val_path)
     elif joint_name == "insertion":
-        model = make_insertion_model()
+        model = make_insertion_model(train_path, val_path)
+    elif joint_name == "platform":
+        model = make_platform_model(train_path, val_path)
     elif joint_name == "wrist":
-        model = make_wrist_model()
+        model = make_wrist_model(train_path, val_path)
     else:
         print("Unknown joint name")
         return
     
     print("Loaded a " + joint_name + " model")
-    use_previous_model = True
+    use_previous_model = False
     epoch_to_use = 20
 
     if use_previous_model:

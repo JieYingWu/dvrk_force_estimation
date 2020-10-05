@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from os.path import join
 from dataset import indirectDataset
-from network import armNetwork, insertionNetwork, wristNetwork
+from network import fsNetwork
 from torch.utils.data import DataLoader
 from utils import load_model, jointTester
 
@@ -14,7 +14,8 @@ contact = sys.argv[2]
 epoch_to_use = int(sys.argv[3])
 batch_size = 1000000
 test_loss = torch.zeros(6)
-path = join('..', 'data', 'csv', 'test_7dof', data, contact)
+test_folder = 'test_7dof'
+path = join('..', 'data', 'csv', test_folder, data, contact)
 
 #############################################
 ## Load free space arm model
@@ -27,8 +28,8 @@ skip = 2
 
 folder = data + "_arm_window"+str(window)+'_'+str(skip)
 
-arm_network = armNetwork(window)    
-model = jointTester(data, folder, arm_network, window, skip, out_joints, in_joints, batch_size, device, path)
+network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
+model = jointTester(data, folder, network, window, skip, out_joints, in_joints, batch_size, device, path)
 model.load_prev(epoch_to_use)
 test_loss[0:2], pred, jacobian, time = model.test()
 arm_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
@@ -40,15 +41,16 @@ arm_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), a
 out_joints = [2]
 in_joints = [0,1,2,3,4,5]
 window = 50
-skip = 2
+skip = 1
 
 folder = data + "_insertion_window"+str(window)+'_'+str(skip)
 
-insertion_network = insertionNetwork(window)
-model = jointTester(data, folder, insertion_network, window, skip, out_joints, in_joints, batch_size, device, path)
+network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
+model = jointTester(data, folder, network, window, skip, out_joints, in_joints, batch_size, device, path)
 model.load_prev(epoch_to_use)
 test_loss[2], pred, jacobian, time = model.test()
 insertion_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
+
 
 #############################################
 ## Load free space wrist model
@@ -61,13 +63,13 @@ skip = 1
 
 folder = data + "_wrist_window"+str(window)+'_'+str(skip)
 
-wrist_network = wristNetwork(window, len(in_joints))
-model = jointTester(data, folder, wrist_network, window, skip, out_joints, in_joints, batch_size, device, path)
+network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
+model = jointTester(data, folder, network, window, skip, out_joints, in_joints, batch_size, device, path)
 model.load_prev(epoch_to_use)
 test_loss[3:], pred, jacobian, time = model.test()
 wrist_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.numpy()), axis=1)
 
-path = join('..', 'results', contact, (data +'_torques'))
+path = join('..', 'results', test_folder, contact, (data +'_torques'))
 try:
     os.mkdir(path)
 except OSError:

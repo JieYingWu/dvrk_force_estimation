@@ -8,7 +8,7 @@ from utils import *
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 lr = 1e-2
 batch_size = 4096
-epochs = 1000
+epochs = 500
 validate_each = 5
 
 def make_arm_model(data, train_path, val_path):
@@ -18,7 +18,7 @@ def make_arm_model(data, train_path, val_path):
     skip = 2
     folder = data + "_arm_window" + str(window) + '_' + str(skip)
 
-    network = armNetwork(window)
+    network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
     model = jointLearner(train_path, val_path, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
     return model
 
@@ -29,7 +29,7 @@ def make_insertion_model(data, train_path, val_path):
     in_joints = [0,1,2,3,4,5]
     folder = data + "_insertion_window" + str(window) + '_' + str(skip)
 
-    network = insertionNetwork(window)
+    network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
     model = jointLearner(train_path, val_path, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
     return model
 
@@ -40,7 +40,7 @@ def make_wrist_model(data, train_path, val_path):
     skip = 1
     folder = data + "_wrist_window" + str(window) + '_' + str(skip)# + "_all_joints"
 
-    network = wristNetwork(window, len(in_joints))
+    network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
     model = jointLearner(train_path, val_path, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
     return model
 
@@ -54,7 +54,7 @@ def make_jaw_model(data):
 
     train = join('..', 'data', 'csv', 'train_jaw', data)
     val = join('..','data','csv','val_jaw', data)
-    network = insertionNetwork(window, len(in_joints)+1)
+    network = fsNetwork(window, in_joints=len(in_joints)+1, out_joints=len(out_joints))
     model = jawLearner(train, val, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
     return model
 
@@ -63,7 +63,7 @@ def main():
     data = sys.argv[2]
     train_path = join('..', 'data', 'csv', 'train', data)
     val_path = join('..','data','csv','val', data)
-
+    
     if joint_name == "arm":
         model = make_arm_model(data, train_path, val_path)
     elif joint_name == "insertion":
@@ -78,7 +78,7 @@ def main():
     
     print("Loaded a " + data + " model")
     use_previous_model = False
-    epoch_to_use = 650
+    epoch_to_use = 730
 
     if use_previous_model:
         model.load_prev(epoch_to_use)
