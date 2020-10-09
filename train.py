@@ -6,9 +6,9 @@ import torch.nn as nn
 from utils import *
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-lr = 1e-2
+lr = 1e-3
 batch_size = 4096
-epochs = 500
+epochs = 1000
 validate_each = 5
 
 def make_arm_model(data, train_path, val_path):
@@ -18,49 +18,60 @@ def make_arm_model(data, train_path, val_path):
     skip = 2
     folder = data + "_arm_window" + str(window) + '_' + str(skip)
 
-    network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
+    network = armNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
     model = jointLearner(train_path, val_path, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
     return model
 
 def make_insertion_model(data, train_path, val_path):
     window = 50
     skip = 2
+    lr = 1e-4
     out_joints = [2]
     in_joints = [0,1,2,3,4,5]
     folder = data + "_insertion_window" + str(window) + '_' + str(skip)
 
-    network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
+    network = insertionNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
+    model = jointLearner(train_path, val_path, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
+    return model
+
+
+def make_platform_model(data, train_path, val_path):
+    out_joints = [3]
+    in_joints = [0,1,2,3,4,5]
+    window = 5
+    skip = 1
+    folder = data + "_platform_window" + str(window) + '_' + str(skip)# + "_all_joints"
+    
+    network = wristNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
     model = jointLearner(train_path, val_path, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
     return model
 
 def make_wrist_model(data, train_path, val_path):
-    out_joints = [3,4,5]
+    out_joints = [4,5]
     in_joints = [0,1,2,3,4,5]
     window = 5
     skip = 1
     folder = data + "_wrist_window" + str(window) + '_' + str(skip)# + "_all_joints"
-
-    network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
+    
+    network = wristNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
     model = jointLearner(train_path, val_path, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
     return model
 
-def make_jaw_model(data):
+def make_jaw_model(data, train_path, val_path):
     out_joints = [6]
     in_joints = [0,1,2,3,4,5]
     window = 5
     skip = 1
     folder = data + "_jaw_window" + str(window) + '_' + str(skip)# + "_all_joints"
 
-
-    train = join('..', 'data', 'csv', 'train_jaw', data)
-    val = join('..','data','csv','val_jaw', data)
     network = fsNetwork(window, in_joints=len(in_joints)+1, out_joints=len(out_joints))
-    model = jawLearner(train, val, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
+    model = jointLearner(train_path, val_path, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, use_jaw=True)
     return model
 
 def main():
     joint_name = sys.argv[1]
     data = sys.argv[2]
+
     train_path = join('..', 'data', 'csv', 'train', data)
     val_path = join('..','data','csv','val', data)
     
@@ -68,10 +79,12 @@ def main():
         model = make_arm_model(data, train_path, val_path)
     elif joint_name == "insertion":
         model = make_insertion_model(data, train_path, val_path)
+    elif joint_name == "platform":
+        model = make_platform_model(data, train_path, val_path)
     elif joint_name == "wrist":
         model = make_wrist_model(data, train_path, val_path)
     elif joint_name == "jaw":
-        model = make_jaw_model(data)
+        model = make_jaw_model(data, train_path, val_path)
     else:
         print("Unknown joint name")
         return

@@ -8,17 +8,19 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-max_torque = (torch.tensor([ 3.1051168, 2.704937, 10.227721, 0.06926354, 0.17762128, 0.15118882])).to(device)
-min_torque = (torch.tensor([-3.1137438, -3.1953104, -9.27689, -0.13118862, -0.17046826, -0.13808922])).to(device)
+max_torque = (torch.tensor([3.1051168, 2.5269854, 8.118658, 0.06744864, 0.1748129, 0.14781484, 0.08568161])).to(device)
+min_torque = (torch.tensor([-3.1137438, -3.1547165, -9.27689, -0.13118862, -0.16299911, -0.12941329,  -0.08511973])).to(device)
 range_torque = max_torque - min_torque
 
-def nrmse_loss(y_hat, y, j, verbose=False):
+
+def nrmse_loss(y_hat, y, j=0, verbose=False):
     if verbose:
         print(max_torque[j], min_torque[j])
+        print(y.max(axis=0).values, y.min(axis=0).values)
         print(y_hat.max(axis=0).values, y_hat.min(axis=0).values)
-#    denominator = y.max(axis=0).values-y.min(axis=0).values
-    summation = torch.sum((y_hat-y)**2, axis=0)
-    nrmse = torch.sqrt((summation/y.size()[0]))/range_torque[j] #denominator #
+    denominator = y.max(axis=0).values-y.min(axis=0).values
+    rmse = torch.sqrt(torch.mean((y_hat-y)**2, axis=0))
+    nrmse = rmse/denominator #range_torque[j] #
     return torch.mean(nrmse) * 100
 
 def relELoss(y_hat, y):
@@ -64,8 +66,8 @@ save = lambda ep, model, model_path, error, optimizer, scheduler: torch.save({
 class jointTester(object):
 
     def __init__(self, data, folder, network, window, skip, out_joints,
-                 in_joints, batch_size, device, path):
-        dataset = indirectForceDataset(path, window, skip, in_joints)
+                 in_joints, batch_size, device, path, use_jaw=False):
+        dataset = indirectForceDataset(path, window, skip, in_joints, use_jaw=use_jaw)
         self.loader = DataLoader(dataset=dataset, batch_size = batch_size, shuffle=False)
 
         self.root = Path('checkpoints' ) 
@@ -90,7 +92,7 @@ class jointTester(object):
             print('Restored model, epoch {}'.format(epoch))
             self.network.eval()
         else:
-            print('Failed to restore model')
+            print('Failed to restore model ' + str(model_path))
             exit()
             
     def test(self, verbose=True):
@@ -101,7 +103,7 @@ class jointTester(object):
             posvel = torch.cat((position, velocity), axis=1).contiguous()
             torque = torque.to(self.device)[:,self.joints]
             
-            pred = self.network(posvel).detach() 
+            pred = self.network(posvel).detach() * range_torque[self.joints] + min_torque[self.joints]
             for j in range(self.num_joints):
                 loss = self.loss_fn(pred[:,j], torque[:,j],self.joints[j],verbose=True)
                 test_loss[j] += loss.item()
@@ -113,7 +115,7 @@ class jointTester(object):
 class jointLearner(object):
     
     def __init__(self, train_path, val_path, data, folder, network, window, skip, out_joints,
-                 in_joints, batch_size, lr, device):
+                 in_joints, batch_size, lr, device, use_jaw=False):
 
         self.root = Path('checkpoints' ) 
         self.model_root = self.root / "models_indirect" / folder
@@ -132,12 +134,12 @@ class jointLearner(object):
         self.optimizer = torch.optim.SGD(self.network.parameters(), lr)
         self.scheduler = ReduceLROnPlateau(self.optimizer, verbose=True)
 
-        train_dataset = indirectDataset(train_path, window, skip, in_joints)
-        val_dataset = indirectDataset(val_path, window, skip, in_joints)
+        train_dataset = indirectDataset(train_path, window, skip, in_joints, use_jaw=use_jaw)
+        val_dataset = indirectDataset(val_path, window, skip, in_joints, use_jaw=use_jaw)
         self.train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
         self.val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False)
 
-        self.loss_fn = nrmse_loss
+        self.loss_fn = torch.nn.MSELoss()
 
         init_weights(self.network)
         self.epoch = 1
@@ -157,7 +159,7 @@ class jointLearner(object):
             self.scheduler.load_state_dict(state['scheduler'])
             print('Restored model, epoch {}'.format(epoch))
         else:
-            print('Failed to restore model')
+            print('Failed to restore model' + str(model_path))
             exit()
 
         
@@ -198,8 +200,8 @@ class jointLearner(object):
             posvel = torch.cat((position, velocity), axis=1).contiguous()
             torque = torque.to(self.device)[:, self.joints]
 
-            pred = self.network(posvel)
-            loss = self.loss_fn(pred, torque, self.joints) 
+            pred = self.network(posvel) * range_torque[self.joints] + min_torque[self.joints]
+            loss = self.loss_fn(pred, torque) 
             step_loss += loss.item()
 
             if (train):
@@ -214,8 +216,8 @@ class jointLearner(object):
     
 class trocarLearner(jointLearner):
     def __init__(self, train_path, val_path, data, folder, network, window, skip, out_joints,
-                 in_joints, batch_size, lr, device, fs_network):
-        super(trocarLearner, self).__init__(train_path, val_path, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device)
+                 in_joints, batch_size, lr, device, fs_network, use_jaw=False):
+        super(trocarLearner, self).__init__(train_path, val_path, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, use_jaw=use_jaw)
         
         self.fs_network = fs_network
 
@@ -246,9 +248,9 @@ class trocarLearner(jointLearner):
 class trocarTester(jointTester):
 
     def __init__(self, data, folder, network, window, skip, out_joints,
-                 in_joints, batch_size, device, fs_network, path):
+                 in_joints, batch_size, device, fs_network, path, use_jaw=False):
         super(trocarTester, self).__init__(data, folder, network, window, skip, out_joints,
-                                           in_joints, batch_size, device, path)
+                                           in_joints, batch_size, device, path, use_jaw=use_jaw)
         
         self.fs_network = fs_network
 
@@ -265,40 +267,14 @@ class trocarTester(jointTester):
             if self.num_joints == 1:
                 fs_torque = fs_torque.unsqueeze(1)
             for j in range(self.num_joints):
-                loss = loss_fn(fs_torque[:,j], torque[:,j])
+                loss = self.loss_fn(fs_torque[:,j], torque[:,j], j)
                 uncorrected_loss[j] += loss.item()
 
             pred = self.network(posvel)
             for j in range(self.num_joints):
-                loss = self.loss_fn(pred[:,j]+fs_torque[:,j], torque[:,j])
+                loss = self.loss_fn(pred[:,j]+fs_torque[:,j], torque[:,j], j)
                 corrected_loss[j] += loss.item()
 
         if verbose:
             return uncorrected_loss, corrected_loss, torque.detach().cpu(), fs_torque.detach().cpu(), pred.detach().cpu(), jacobian, time
         return uncorrected_loss, corrected_loss
-    
-
-
-class jawLearner(jointLearner):
-    
-    def __init__(self, train_path, val_path, data, folder, network, window, skip, out_joints,
-                 in_joints, batch_size, lr, device):
-
-        super(jawLearner, self).__init__(train_path, val_path, data, folder, network, window, skip, out_joints,
-                                           in_joints, batch_size, lr, device)
-        self.train_path = join('..', 'data', 'csv', 'train_jaw', data)
-        self.val_path = join('..','data','csv','val_jaw', data)
-
-        train_dataset = indirectJawDataset(self.train_path, window, skip, in_joints)
-        val_dataset = indirectJawDataset(self.val_path, window, skip, in_joints)
-        self.train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
-        self.val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False)
-
-class jawTester(jointTester):
-
-    def __init__(self, data, folder, network, window, skip, out_joints,
-                 in_joints, batch_size, device, path):
-        super(jawTester, self).__init__(data, folder, network, window, skip, out_joints,
-                 in_joints, batch_size, device, path)
-        dataset = indirectJawForceDataset(path, window, skip, in_joints)
-        self.loader = DataLoader(dataset=dataset, batch_size = batch_size, shuffle=False)

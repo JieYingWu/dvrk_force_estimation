@@ -1,30 +1,20 @@
 data = 'free_space';
 contact = 'with_contact';
 test_folder = 'test_7dof';
-force_path = ['../data/csv/', test_folder, '/', data, '/', contact, '/sensor/'];
-joint_path = ['../data/csv/', test_folder, '/', data, '/', contact, '/joints/'];
+file = 0;
+exp = ['exp',num2str(file)];
+force_path = ['../data/csv/', test_folder, '/', data, '/', contact, '/', exp, '/sensor/'];
+joint_path = ['../data/csv/', test_folder, '/', data, '/', contact, '/', exp, '/joints/'];
 
 joint_folder = dir(joint_path);
-force_data = [];
-joint_data = [];
-files = size(joint_folder);
-force_lengths = zeros(1,files(1)-2);
-joint_lengths = zeros(1,files(1)-2);
-for i = 3:files(1)
-    temp_data = readmatrix([force_path, joint_folder(i).name]); 
-    force_data = [force_data; temp_data];
-    temp_size = size(temp_data);
-    temp_data = readmatrix([joint_path, joint_folder(i).name]); 
-    force_lengths(i-2) = temp_size(1);
-    joint_data = [joint_data; temp_data];
-    temp_size = size(temp_data);
-    joint_lengths(i-2) = temp_size(1);
-end
+force_data = readmatrix([force_path, joint_folder(3).name]);
+joint_data = readmatrix([joint_path, joint_folder(3).name]); 
 
 %data = 'corrected';
-arm_torque = readmatrix(['../results/', contact, '/', data, '_torques/arm.csv']);
-insertion_torque = readmatrix(['../results/', contact, '/', data, '_torques/insertion.csv']);
-wrist_torque = readmatrix(['../results/', contact, '/', data, '_torques/wrist.csv']);
+path = ['../results/', test_folder, '/', contact, '/', data, '/', exp];
+arm_torque = readmatrix([path, '/arm.csv']);
+insertion_torque = readmatrix([path, '/insertion.csv']);
+wrist_torque = readmatrix([path, '/wrist.csv']);
 
 length = size(joint_data);
 length = length(1);
@@ -44,20 +34,15 @@ for i = 1:length
     all_forces(i,:)  = J * all_torques(i,:)';
 end
 
-axis_to_plot = [2];
+axis_to_plot = [3];
 predicted = all_forces(:,axis_to_plot);
-predicted(predicted > 0) = 0;
-file_to_plot = 2;
-start_index_force = sum(force_lengths(1:file_to_plot-1))+1;
-end_index_force = sum(force_lengths(1:file_to_plot));
-start_index_joint = sum(joint_lengths(1:file_to_plot-1))+1;
-end_index_joint = sum(joint_lengths(1:file_to_plot));
+%predicted(predicted > 0) = 0;
 
 figure
-plot(joint_data(start_index_joint:end_index_joint, 1), predicted(start_index_joint:end_index_joint), 'r')
+plot(joint_data(:, 1), predicted, 'r')
 title(data)
 hold on
-plot(force_data(start_index_force:end_index_force, 1), force_data(start_index_force:end_index_force,axis_to_plot+1), 'b')
+plot(force_data(:, 1), force_data(:,axis_to_plot+1), 'b')
 legend('pred', 'measured')
 title('Force')
 

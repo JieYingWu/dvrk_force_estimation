@@ -2,32 +2,33 @@ import sys
 import torch
 import numpy as np
 from pathlib import Path
-from dataset import indirectRnnDataset
+from dataset import indirectDataset
 from network import torqueLstmNetwork
 from torch.utils.data import DataLoader
 from utils import nrmse_loss
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 JOINTS = 6
-window = 10
-skip = 10
+window = 16384
+skip = 1
+exp = 'exp0'
 
 data = sys.argv[1]
 #test_path = '../data/csv/test/exp1_dynamic_identification/'
-test_path = '../data/csv/test/' + data + '/no_contact/'
+test_path = '../data/csv/test/' + data + '/no_contact/' + exp
 root = Path('checkpoints' )
 folder = data + "_lstm"+str(window) + '_' + str(skip)
 
 batch_size = 1000000
-epoch_to_use = 2155
+epoch_to_use = 1000
 
 networks = []
 for j in range(JOINTS):
-    networks.append(torqueLstmNetwork())
+    networks.append(torqueLstmNetwork(window))
     networks[j].to(device)
                           
 
-test_dataset = indirectRnnDataset(test_path, window, skip)
+test_dataset = indirectDataset(test_path, window, skip, rnn=True)
 test_loader = DataLoader(dataset=test_dataset, batch_size = batch_size, shuffle=False)
 
 model_root = root / "models_indirect" / folder
@@ -45,8 +46,10 @@ for j in range(JOINTS):
 
 test_loss = np.zeros(JOINTS)
     
-for i, (posvel, torque, jacobian) in enumerate(test_loader):
-    posvel = posvel.to(device)
+for i, (position, velocity, torque, jacobian, time) in enumerate(test_loader):
+    position = position.to(device)
+    velocity = velocity.to(device)
+    posvel = torch.cat((position, velocity), axis=2).contiguous()
     torque = torque.to(device)
     posvel = posvel.permute((1,0,2))
 
@@ -55,7 +58,7 @@ for i, (posvel, torque, jacobian) in enumerate(test_loader):
     all_torques = None
     for j in range(JOINTS):
         pred = networks[j](posvel).detach()
-        loss = nrmse_loss(pred.squeeze(), torque[:,j])
+        loss = nrmse_loss(pred.squeeze(), torque[:,j],j)
         test_loss[j] += loss
         
         pred = pred.transpose(1,0).cpu().numpy()

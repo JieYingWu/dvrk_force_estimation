@@ -5,17 +5,25 @@ import torch
 from torch.utils.data import Dataset
 
 class indirectDataset(Dataset):
-    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], rnn=False):
+    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], rnn=False, use_jaw=False):
 
         all_joints = np.array([])
         all_cartesian = np.array([])
         all_jacobian = np.array([])
+        all_jaw = np.array([])
         joint_path = join(path, 'joints')
         jacobian_path = join(path, 'jacobian')
+        jaw_path = join(path, 'jaw')
+         
         for cur_file in os.listdir(joint_path):
             joints = np.loadtxt(join(joint_path, cur_file), delimiter=',')
             all_joints = np.vstack((all_joints, joints)) if all_joints.size else joints
 
+            if use_jaw:
+                jaw = np.loadtxt(join(jaw_path, cur_file), delimiter=',')
+                jaw = jaw[0:joints.shape[0],:]
+                all_jaw = np.vstack((all_jaw, jaw)) if all_jaw.size else jaw
+            
             jacobian = np.loadtxt(join(jacobian_path, cur_file), delimiter=',')
             all_jacobian = np.vstack((all_jacobian, jacobian)) if all_jacobian.size else jacobian
             
@@ -27,6 +35,11 @@ class indirectDataset(Dataset):
         self.position = all_joints[:,position_indices].astype('float32')
         self.velocity = all_joints[:,velocity_indices].astype('float32')
         self.torque = all_joints[:,13:19].astype('float32')
+        if use_jaw:
+            all_jaw = all_jaw.astype('float32')
+            self.position = np.concatenate((self.position, all_jaw[:,0:1]), axis=1)
+            self.velocity = np.concatenate((self.velocity, all_jaw[:,1:2]), axis=1)
+            self.torque = np.concatenate((self.torque, all_jaw[:,2:3]), axis=1)
 #        print(np.max(self.torque, axis=0))
 #        print(np.min(self.torque, axis=0))
 #        exit()
@@ -57,23 +70,10 @@ class indirectDataset(Dataset):
         jacobian = self.jacobian[end-self.skip, :]
         return position, velocity, torque, jacobian, time
 
-class indirectJawDataset(indirectDataset):
-    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], rnn=False):
-        super(indirectJawDataset, self).__init__(path, window, skip, indices, rnn)
-        all_jaw = np.array([])
-        jaw_path = join(path, 'jaw')
-        for cur_file in os.listdir(jaw_path):
-            jaw = np.loadtxt(join(jaw_path, cur_file), delimiter=',')
-            all_jaw = np.vstack((all_jaw, jaw)) if all_jaw.size else jaw
-
-        all_jaw = all_jaw.astype('float32')
-        self.position = np.concatenate((self.position, all_jaw[:,1:2]), axis=1)
-        self.velocity = np.concatenate((self.velocity, all_jaw[:,2:3]), axis=1)
-        self.torque = np.concatenate((self.torque, all_jaw[:,3:4]), axis=1)
     
 class indirectForceDataset(indirectDataset):
-    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], rnn=False):
-        super(indirectForceDataset, self).__init__(path, window, skip, indices, rnn)
+    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], rnn=False, use_jaw=False):
+        super(indirectForceDataset, self).__init__(path, window, skip, indices, rnn, use_jaw)
         
     def __len__(self):
         return self.torque.shape[0] - (self.window * self.skip)
@@ -93,16 +93,3 @@ class indirectForceDataset(indirectDataset):
 
 
 
-class indirectJawForceDataset(indirectForceDataset):
-    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], rnn=False):
-        super(indirectJawForceDataset, self).__init__(path, window, skip, indices, rnn)
-        all_jaw = np.array([])
-        jaw_path = join(path, 'jaw')
-        for cur_file in os.listdir(jaw_path):
-            jaw = np.loadtxt(join(jaw_path, cur_file), delimiter=',')
-            all_jaw = np.vstack((all_jaw, jaw)) if all_jaw.size else jaw
-
-        all_jaw = all_jaw.astype('float32')
-        self.position = np.concatenate((self.position, all_jaw[:,1:2]), axis=1)
-        self.velocity = np.concatenate((self.velocity, all_jaw[:,2:3]), axis=1)
-        self.torque = np.concatenate((self.torque, all_jaw[:,3:4]), axis=1)

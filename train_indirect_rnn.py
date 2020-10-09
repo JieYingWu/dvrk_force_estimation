@@ -2,7 +2,7 @@ import sys
 import tqdm
 import torch
 from pathlib import Path
-from dataset import indirectRnnDataset
+from dataset import indirectDataset
 from network import torqueLstmNetwork
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -15,8 +15,8 @@ def init_weights(m):
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 JOINTS = 6
-window = 50
-skip = 10
+window = 16384
+skip = 1
 
 data = sys.argv[1]
 train_path = '../data/csv/train/' + data + '/'
@@ -25,7 +25,7 @@ root = Path('checkpoints' )
 folder = data + "_lstm"+str(window) + '_' + str(skip)
 
 lr = 1e-2
-batch_size = 4096
+batch_size = 64
 epochs = 5000
 validate_each = 5
 use_previous_model = False
@@ -41,8 +41,8 @@ for j in range(JOINTS):
     schedulers.append(ReduceLROnPlateau(optimizers[j], verbose=True))
                           
 
-train_dataset = indirectRnnDataset(train_path, window, skip)
-val_dataset = indirectRnnDataset(val_path, window, skip)
+train_dataset = indirectDataset(train_path, window, skip, rnn=True)
+val_dataset = indirectDataset(val_path, window, skip, rnn=True)
 train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False)
     
@@ -91,8 +91,10 @@ for e in range(epoch, epochs + 1):
     for j in range(JOINTS):
         networks[j].train()
     
-    for i, (posvel, torque, jacobian) in enumerate(train_loader):
-        posvel = posvel.to(device)
+    for i, (position, velocity, torque, jacobian, time) in enumerate(train_loader):
+        position = position.to(device)
+        velocity = velocity.to(device)
+        posvel = torch.cat((position, velocity), axis=2).contiguous()
         torque = torque.to(device)
         posvel = posvel.permute((1,0,2))
 
@@ -117,8 +119,10 @@ for e in range(epoch, epochs + 1):
             networks[j].eval()
 
         val_loss = torch.zeros(JOINTS)
-        for i, (posvel, torque, jacobian) in enumerate(val_loader):
-            posvel = posvel.to(device)
+        for i, (position, velocity, torque, jacobian, time) in enumerate(val_loader):
+            position = position.to(device)
+            velocity = velocity.to(device)
+            posvel = torch.cat((position, velocity), axis=2).contiguous()
             torque = torque.to(device)
             posvel = posvel.permute((1,0,2))
 

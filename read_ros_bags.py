@@ -73,17 +73,20 @@ class RosbagParser():
             x = msg.wrench.force.x
             y = msg.wrench.force.y
             z = msg.wrench.force.z # the sensor is probably most accurate in the z direction
-            force_sensor.append([x,y,z])
+            t_x = msg.wrench.torque.x
+            t_y = msg.wrench.torque.y
+            t_z = msg.wrench.torque.z
+            force_sensor.append([x,y,z,t_x,t_y,t_z])
 
         fsr0_msg = bag.read_messages(topics=['/FSR0'])
         for topic, msg, t in fsr0_msg:
             fsr0_timestamps.append(t.secs+t.nsecs*10**-9)
-            fsr0.append(msg.data)
+            fsr0.append([t.secs+t.nsecs*10**-9, msg.data])
 
         fsr1_msg = bag.read_messages(topics=['/FSR1'])
         for topic, msg, t in fsr1_msg:
             fsr1_timestamps.append(t.secs+t.nsecs*10**-9)
-            fsr1.append(msg.data)
+            fsr1.append([t.secs+t.nsecs*10**-9, msg.data])
             
         bag.close()
                                       
@@ -149,6 +152,7 @@ class RosbagParser():
         if len(jaw) > 0:
             jaw_timestamps = np.array(jaw_timestamps) - start_time
             jaw = np.squeeze(np.array(jaw))
+            jaw = np.column_stack((jaw_timestamps, jaw))
             if len(joints) < len(jaw):
                 jaw = jaw[0:len(joints), :]
             else:
