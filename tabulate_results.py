@@ -9,7 +9,7 @@ def nrmse_loss(y_hat, y):
     return nrmse * 100
 
 test = 'test'
-data = 'free_space'
+data = 'trocar'
 contact = 'no_contact'
 results_dir = join('..', 'results', test, data, contact)
 joints_dir = join('..', 'data', 'csv', test, data, contact)

@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from os.path import join
 from dataset import indirectDataset
-from network import fsNetwork, trocarNetwork
+from network import *
 from torch.utils.data import DataLoader
 from utils import nrmse_loss, load_model, trocarTester
 
@@ -16,7 +16,7 @@ epoch = 1000
 trocar_epoch = (sys.argv[1])
 test = 'test'
 contact = 'no_contact'
-exp = 'exp0'
+exp = 'exp1'
 path = join('..', 'data', 'csv', test, 'trocar', contact, exp)
 
 #####################################################
@@ -31,7 +31,7 @@ skip = 2
 fs_folder = "free_space_arm_window"+str(window)+'_'+str(skip)
 trocar_folder = "trocar_arm_2_part_"+str(window) + '_' + str(skip)
 
-fs_network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
+fs_network = armNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
 fs_network = load_model(fs_folder, epoch, fs_network, device)
 network = trocarNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
         
@@ -53,7 +53,7 @@ skip = 2
 fs_folder = "free_space_insertion_window"+str(window)+'_'+str(skip)
 trocar_folder = "trocar_insertion_2_part_"+str(window) + '_' + str(skip)
 
-fs_network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
+fs_network = insertionNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
 fs_network = load_model(fs_folder, epoch, fs_network, device)
 network = trocarNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
 model = trocarTester("trocar", trocar_folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network, path)
@@ -68,13 +68,13 @@ insertion_fs_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.nu
 
 out_joints = [3]
 in_joints = [0,1,2,3,4,5]
-window = 2
+window = 5
 skip = 1
 
 fs_folder = "free_space_platform_window"+str(window)+'_'+str(skip)
 trocar_folder = "trocar_platform_2_part_"+str(window) + '_' + str(skip)
 
-fs_network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
+fs_network = wristNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
 fs_network = load_model(fs_folder, epoch, fs_network, device)
 network = trocarNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
 model = trocarTester("trocar", trocar_folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network, path)
@@ -87,7 +87,7 @@ platform_fs_pred = np.concatenate((time.unsqueeze(1), pred.numpy(), jacobian.num
 ## Load free space and trocar wrist model
 #############################################
 
-window = 2
+window = 5
 skip = 1
 out_joints = [4,5]
 in_joints = [0,1,2,3,4,5]
@@ -95,7 +95,7 @@ in_joints = [0,1,2,3,4,5]
 fs_folder = "free_space_wrist_window"+str(window)+'_'+str(skip)
 trocar_folder = "trocar_wrist_2_part_"+str(window) + '_' + str(skip)
 
-fs_network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
+fs_network = wristNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
 fs_network = load_model(fs_folder, epoch, fs_network, device)
 
 network = trocarNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
@@ -139,6 +139,7 @@ except OSError:
     
 np.savetxt(join(path, 'arm.csv'), arm_fs_pred)
 np.savetxt(join(path, 'insertion.csv'), insertion_fs_pred)
+np.savetxt(join(path, 'platform.csv'), platform_fs_pred)
 np.savetxt(join(path, 'wrist.csv'), wrist_fs_pred)
 
 path = join('..', 'results', test, 'trocar',  contact, exp,  'corrected')
@@ -151,7 +152,7 @@ np.savetxt(join(path, 'arm.csv'), arm_pred)
 np.savetxt(join(path, 'insertion.csv'), insertion_pred)
 np.savetxt(join(path, 'platform.csv'), platform_pred)
 np.savetxt(join(path, 'wrist.csv'), wrist_pred)
-np.savetxt(join(path, 'jaw.csv'), jaw_pred)
+#np.savetxt(join(path, 'jaw.csv'), jaw_pred)
 
 print('Uncorrected loss: t1=%f, t2=%f, f3=%f, t4=%f, t5=%f, t6=%f, mean=%f' % (uncorrected_loss[0], uncorrected_loss[1], uncorrected_loss[2], uncorrected_loss[3], uncorrected_loss[4], uncorrected_loss[5], torch.mean(uncorrected_loss)))
 

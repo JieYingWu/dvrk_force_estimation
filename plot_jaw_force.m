@@ -11,10 +11,10 @@ joint_data = readmatrix([joint_path, jaw_folder(3).name]);
 
 pred_torque = readmatrix(['../results/test_7dof/', data, '/with_contact/', exp, '/jaw.csv']);
 fsr0_folder = dir(fsr0_path);
-fsr0 = readmatrix([fsr0_path, fsr0_folder(3).name]);
-fsr0 = 0.009*fsr0 - 4.7138; % From calibration
-fsr1 = readmatrix([fsr1_path, fsr0_folder(3).name]);
-fsr1 = 0.0083*fsr1 - 4.4605; % From calibration
+fsr0_data = readmatrix([fsr0_path, fsr0_folder(3).name]);
+fsr0 = 0.009*fsr0_data - 4.7138; % From calibration
+fsr1_data = readmatrix([fsr1_path, fsr0_folder(3).name]);
+fsr1 = 0.0083*fsr1_data - 4.4605; % From calibration
 
 length = size(jaw_data);
 length = length(1);
@@ -25,5 +25,5 @@ external_torque = jaw_data(:,3) - padded_torque;
 figure
 plot(joint_data(:,1), external_torque, 'r')
 hold on
-plot(fsr1, 'b')
+plot(fsr0_data(:,1), fsr0(:,2), 'b')
 legend('pred', 'measured')

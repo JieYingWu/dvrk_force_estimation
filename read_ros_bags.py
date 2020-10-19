@@ -81,12 +81,12 @@ class RosbagParser():
         fsr0_msg = bag.read_messages(topics=['/FSR0'])
         for topic, msg, t in fsr0_msg:
             fsr0_timestamps.append(t.secs+t.nsecs*10**-9)
-            fsr0.append([t.secs+t.nsecs*10**-9, msg.data])
+            fsr0.append([msg.data])
 
         fsr1_msg = bag.read_messages(topics=['/FSR1'])
         for topic, msg, t in fsr1_msg:
             fsr1_timestamps.append(t.secs+t.nsecs*10**-9)
-            fsr1.append([t.secs+t.nsecs*10**-9, msg.data])
+            fsr1.append([msg.data])
             
         bag.close()
                                       
@@ -157,6 +157,12 @@ class RosbagParser():
                 jaw = jaw[0:len(joints), :]
             else:
                 joints = joints[0:len(jaw), :]
+
+        if len(fsr0) > 0:
+            fsr0_timestamps = np.array(fsr0_timestamps)- start_time
+            fsr1_timestamps = np.array(fsr1_timestamps) - start_time
+            fsr0 = np.column_stack((fsr0_timestamps, fsr0))
+            fsr1= np.column_stack((fsr1_timestamps, fsr1))
             
         file_name = self.prefix + str(self.index)        
         np.savetxt(self.output + "joints/" + file_name + ".csv", joints, delimiter=',')

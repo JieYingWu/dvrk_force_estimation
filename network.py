@@ -202,18 +202,20 @@ class armTrocarNetwork(nn.Module):
     
 # Vaguely inspired by LSTM from https://github.com/BerkeleyAutomation/dvrkCalibration/blob/cec2b8096e3a891c4dcdb09b3161e2a407fee0ee/experiment/3_training/modeling/models.py
 class torqueLstmNetwork(nn.Module):
-    def __init__(self, window, joints=6, hidden_dim=128, num_layers=1):
+    def __init__(self, joints=6, hidden_dim=256, num_layers=1):
         super(torqueLstmNetwork, self).__init__()
         self.num_layers = num_layers
         self.hidden_dim = hidden_dim
         self.lstm = nn.LSTM(joints*2, hidden_dim, num_layers)  
-        self.linear = nn.Linear(hidden_dim, 1)
+        self.linear0 = nn.Linear(hidden_dim, 128)
+        self.linear1 = nn.Linear(128, 1)
 
     def forward(self, x):
         hidden = self.init_hidden(x)
-        out, _ = self.lstm(x, hidden)
-        out = self.linear(out[-1])
-        return out
+        x, _ = self.lstm(x, hidden)
+        x = self.linear0(x)
+        x = self.linear1(x)
+        return x
 
     def init_hidden(self, x):
         if next(self.parameters()).is_cuda:

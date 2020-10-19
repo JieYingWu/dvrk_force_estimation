@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset
 
 class indirectDataset(Dataset):
-    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], rnn=False, use_jaw=False):
+    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], use_jaw=False):
 
         all_joints = np.array([])
         all_cartesian = np.array([])
@@ -49,7 +49,6 @@ class indirectDataset(Dataset):
         self.jacobian = all_jacobian[:,1:].astype('float32')
         self.window = window
         self.skip = skip
-        self.rnn = rnn # Don't flatten input if RNN
         
     def __len__(self):
         return self.torque.shape[0]/self.window - self.skip
@@ -62,14 +61,45 @@ class indirectDataset(Dataset):
         time = self.time[end-self.skip]
         position = self.position[begin:end:self.skip,:]
         velocity = self.velocity[begin:end:self.skip,:]
-        if not self.rnn:
-            position = position.flatten()
-            velocity = velocity.flatten()
+        position = position.flatten()
+        velocity = velocity.flatten()
         torque = self.torque[end-self.skip,:]
         #        cartesian = self.cartesian[idx*self.window+self.window,:]
         jacobian = self.jacobian[end-self.skip, :]
         return position, velocity, torque, jacobian, time
 
+class indirectRnnDataset(Dataset):
+    def __init__(self, path, window, indices = [0,1,2,3,4,5]):
+
+        self.position = []
+        self.velocity = []
+        self.torque = []
+        self.jacobian = []
+        joint_path = join(path, 'joints')
+        jacobian_path = join(path, 'jacobian')
+
+        for cur_file in os.listdir(joint_path):
+            joints = np.loadtxt(join(joint_path, cur_file), delimiter=',')
+            jacobian = np.loadtxt(join(jacobian_path, cur_file), delimiter=',')
+
+            self.position.append(joints[:,1:7].astype('float32'))
+            self.velocity.append(joints[:,7:13].astype('float32'))
+            self.torque.append(joints[:,13:19].astype('float32'))
+            self.jacobian.append(jacobian[:,1:].astype('float32'))
+            
+        
+    def __len__(self):
+        return len(self.position)
+
+    def __getitem__(self, idx):
+        position = self.position[idx]
+        velocity = self.velocity[idx]
+        torque = self.torque[idx]
+        jacobian = self.jacobian[idx]
+                               
+        return position, velocity, torque, jacobian
+
+    
     
 class indirectForceDataset(indirectDataset):
     def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], rnn=False, use_jaw=False):
