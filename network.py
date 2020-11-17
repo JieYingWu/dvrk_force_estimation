@@ -208,12 +208,14 @@ class torqueLstmNetwork(nn.Module):
         self.hidden_dim = hidden_dim
         self.lstm = nn.LSTM(joints*2, hidden_dim, num_layers)  
         self.linear0 = nn.Linear(hidden_dim, 128)
+        self.relu = nn.ReLU()
         self.linear1 = nn.Linear(128, 1)
 
     def forward(self, x):
         hidden = self.init_hidden(x)
         x, _ = self.lstm(x, hidden)
         x = self.linear0(x)
+        x = self.relu(x)
         x = self.linear1(x)
         return x
 

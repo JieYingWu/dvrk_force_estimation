@@ -15,7 +15,7 @@ def init_weights(m):
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 JOINTS = 6
-window = 100
+window = 1000
 
 data = sys.argv[1]
 train_path = '../data/csv/train/' + data + '/'
@@ -24,7 +24,7 @@ root = Path('checkpoints' )
 folder = data + "_lstm"
 #print("Using validation as training - FIX BEFORE TRAINING FOR REALSIES")
 lr = 1e-2
-batch_size = 1
+batch_size = 128
 epochs = 1000
 validate_each = 5
 use_previous_model = False
@@ -129,7 +129,7 @@ for e in range(epoch, epochs + 1):
 
             for j in range(JOINTS):
                 pred = networks[j](posvel)
-                loss = loss_fn(pred[-50:,:,:], torque[-50:,:,j:j+1])
+                loss = loss_fn(pred[100-window:,:,:], torque[100-window:,:,j:j+1])
                 val_loss[j] += loss.item()
 
         for j in range(JOINTS):

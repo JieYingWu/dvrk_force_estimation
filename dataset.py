@@ -81,11 +81,12 @@ class indirectRnnDataset(Dataset):
         for cur_file in os.listdir(joint_path):
             joints = np.loadtxt(join(joint_path, cur_file), delimiter=',')
             jacobian = np.loadtxt(join(jacobian_path, cur_file), delimiter=',')
-
-            self.position.append(joints[:,1:7].astype('float32'))
-            self.velocity.append(joints[:,7:13].astype('float32'))
-            self.torque.append(joints[:,13:19].astype('float32'))
-            self.jacobian.append(jacobian[:,1:].astype('float32'))
+            
+            for i in range(0,joints.shape[0]-window, window):
+                self.position.append(joints[i:i+window,1:7].astype('float32'))
+                self.velocity.append(joints[i:i+window,7:13].astype('float32'))
+                self.torque.append(joints[i:i+window,13:19].astype('float32'))
+                self.jacobian.append(jacobian[i:i+window,1:].astype('float32'))
             
         
     def __len__(self):
