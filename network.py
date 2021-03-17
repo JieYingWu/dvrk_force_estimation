@@ -202,21 +202,25 @@ class armTrocarNetwork(nn.Module):
     
 # Vaguely inspired by LSTM from https://github.com/BerkeleyAutomation/dvrkCalibration/blob/cec2b8096e3a891c4dcdb09b3161e2a407fee0ee/experiment/3_training/modeling/models.py
 class torqueLstmNetwork(nn.Module):
-    def __init__(self, joints=6, hidden_dim=256, num_layers=1):
+    def __init__(self, joints=6, hidden_dim=128, num_layers=1, p=0.5):
         super(torqueLstmNetwork, self).__init__()
         self.num_layers = num_layers
         self.hidden_dim = hidden_dim
         self.lstm = nn.LSTM(joints*2, hidden_dim, num_layers)  
-        self.linear0 = nn.Linear(hidden_dim, 128)
+        self.linear0 = nn.Linear(hidden_dim, int(hidden_dim/2))
         self.relu = nn.ReLU()
-        self.linear1 = nn.Linear(128, 1)
+        self.tanh = nn.Tanh()
+        self.linear1 = nn.Linear(int(hidden_dim/2), 1)
+        #self.bn0 = nn.BatchNorm1d(int(hidden_dim/2))
 
     def forward(self, x):
         hidden = self.init_hidden(x)
         x, _ = self.lstm(x, hidden)
         x = self.linear0(x)
         x = self.relu(x)
+        #x = self.bn0(x)
         x = self.linear1(x)
+        x = self.tanh(x)
         return x
 
     def init_hidden(self, x):

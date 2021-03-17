@@ -1,7 +1,8 @@
+import os
 import sys
 import tqdm
 import torch
-from pathlib import Path
+from os.path import join
 from dataset import indirectRnnDataset
 from network import torqueLstmNetwork
 import torch.nn as nn
@@ -18,17 +19,19 @@ JOINTS = 6
 window = 1000
 
 data = sys.argv[1]
-train_path = '../data/csv/train/' + data + '/'
-val_path = '../data/csv/val/' + data + '/'
-root = Path('checkpoints' ) 
+train_path = join('..', 'data', 'csv', 'train', data)
+val_path = join('..','data','csv','val', data)
+torque_scale = torch.tensor([4, 4, 10, 0.2, 0.2, 0.2])
+
+root = 'checkpoints'
 folder = data + "_lstm"
 #print("Using validation as training - FIX BEFORE TRAINING FOR REALSIES")
-lr = 1e-2
-batch_size = 128
+lr = 1e-4
+batch_size = 512
 epochs = 1000
 validate_each = 5
 use_previous_model = False
-epoch_to_use = 4200
+epoch_to_use = 60
 
 networks = []
 optimizers = []
@@ -36,7 +39,7 @@ schedulers = []
 for j in range(JOINTS):
     networks.append(torqueLstmNetwork())
     networks[j].to(device)
-    optimizers.append(torch.optim.SGD(networks[j].parameters(), lr))
+    optimizers.append(torch.optim.SGD(networks[j].parameters(), lr, weight_decay=0.01))
     schedulers.append(ReduceLROnPlateau(optimizers[j], verbose=True))
                           
 
@@ -48,16 +51,16 @@ val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=Fa
 loss_fn = torch.nn.MSELoss()
 
 try:
-    model_root = root / "models_indirect" / folder
-    model_root.mkdir(mode=0o777, parents=False)
+    model_root = join(root, "models_indirect", folder)
+    os.mkdir(model_root, mode=0o777)
 except OSError:
     print("Model path exists")
 
 # Read existing weights for both G and D models
 if use_previous_model:
     for j in range(JOINTS):
-        model_path = model_root / 'model_joint_{}_{}.pt'.format(j, epoch_to_use)
-        if model_path.exists():
+        model_path = join(model_root, 'model_joint_{}_{}.pt'.format(j, epoch_to_use))
+        if os.path.isfile(model_path):
             state = torch.load(str(model_path))
             epoch = state['epoch'] + 1
             networks[j].load_state_dict(state['model'])
@@ -101,9 +104,10 @@ for e in range(epoch, epochs + 1):
         step_loss = 0
 
         for j in range(JOINTS):
-            pred = networks[j](posvel)
-            loss = loss_fn(pred, torque[:,:,j:j+1])
-            step_loss += loss.item()
+            pred = networks[j](posvel)*torque_scale[j]
+            loss = loss_fn(pred[100-window:,:,:], torque[100-window:,:,j:j+1])
+            step_loss += loss.item()/JOINTS
+            
             optimizers[j].zero_grad()
             loss.backward()
             optimizers[j].step()
@@ -128,16 +132,17 @@ for e in range(epoch, epochs + 1):
             torque = torque.permute((1,0,2))
 
             for j in range(JOINTS):
-                pred = networks[j](posvel)
+                pred = networks[j](posvel)*torque_scale[j]
                 loss = loss_fn(pred[100-window:,:,:], torque[100-window:,:,j:j+1])
-                val_loss[j] += loss.item()
+                val_loss[j] = loss.item()
 
         for j in range(JOINTS):
             schedulers[j].step(val_loss[j])
-        tq.set_postfix(loss='validation loss={:5f}'.format(torch.mean(val_loss)/len(val_loader)))
+        print('validation loss', val_loss/len(val_loader))
+#        tq.set_postfix(loss='validation loss={:5f}'.format(torch.mean(val_loss)/len(val_loader)))
 
         for j in range(JOINTS):
-            model_path = model_root / "model_joint_{}_{}.pt".format(j, e)
+            model_path = join(model_root, "model_joint_{}_{}.pt".format(j, e))
             save(e, networks[j], model_path, val_loss[j]/len(val_loader), optimizers[j], schedulers[j])
         
     tq.close()
