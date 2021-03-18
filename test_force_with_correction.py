@@ -12,7 +12,7 @@ batch_size = 1000000
 uncorrected_loss = torch.zeros(6)
 corrected_loss = torch.zeros(6)
 epoch = 1000
-trocar_epoch = (sys.argv[1])
+trocar_epoch = sys.argv[1]
 
 #####################################################
 ## Load free space and trocar arm model and run

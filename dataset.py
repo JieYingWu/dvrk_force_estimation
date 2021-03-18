@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset
 
 class indirectDataset(Dataset):
-    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], use_jaw=False):
+    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], is_rnn=False, use_jaw=False):
 
         all_joints = np.array([])
         all_cartesian = np.array([])
@@ -27,7 +27,7 @@ class indirectDataset(Dataset):
             jacobian = np.loadtxt(join(jacobian_path, cur_file), delimiter=',')
             all_jacobian = np.vstack((all_jacobian, jacobian)) if all_jacobian.size else jacobian
             
-        self.time = all_joints[:,0].astype('float64') # Don't know why the time get written out weird
+#        self.time = all_joints[:,0].astype('float64') # Don't know why the time get written out weird
         self.indices = torch.tensor(indices)
         position_indices = self.indices + 1
         velocity_indices = self.indices + 7
@@ -49,24 +49,29 @@ class indirectDataset(Dataset):
         self.jacobian = all_jacobian[:,1:].astype('float32')
         self.window = window
         self.skip = skip
+        self.is_rnn = is_rnn
         
     def __len__(self):
-        return self.torque.shape[0]/self.window - self.skip
+        return int(self.torque.shape[0]/self.window) - self.skip
 
     def __getitem__(self, idx):
-        quotient = idx / self.skip
+        quotient = int(idx / self.skip)
         remainder = idx % self.skip
         begin = quotient * self.window * self.skip + remainder
         end = begin + self.window * self.skip 
-        time = self.time[end-self.skip]
+#        time = self.time[end-self.skip]
         position = self.position[begin:end:self.skip,:]
         velocity = self.velocity[begin:end:self.skip,:]
-        position = position.flatten()
-        velocity = velocity.flatten()
-        torque = self.torque[end-self.skip,:]
+        if self.is_rnn:
+            torque = self.torque[begin:end:self.skip,:]
+        else:
+            position = position.flatten()
+            velocity = velocity.flatten()
+            torque = self.torque[end-self.skip,:]
+
         #        cartesian = self.cartesian[idx*self.window+self.window,:]
         jacobian = self.jacobian[end-self.skip, :]
-        return position, velocity, torque, jacobian, time
+        return position, velocity, torque, jacobian#, time
 
 class indirectRnnDataset(Dataset):
     def __init__(self, path, window, indices = [0,1,2,3,4,5]):
@@ -101,26 +106,3 @@ class indirectRnnDataset(Dataset):
         return position, velocity, torque, jacobian
 
     
-    
-class indirectForceDataset(indirectDataset):
-    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], rnn=False, use_jaw=False):
-        super(indirectForceDataset, self).__init__(path, window, skip, indices, rnn, use_jaw)
-        
-    def __len__(self):
-        return self.torque.shape[0] - (self.window * self.skip)
-
-    def __getitem__(self, idx):
-        begin = idx
-        end = begin + self.window * self.skip 
-        time = self.time[end-self.skip]
-        position = self.position[begin:end:self.skip,:]
-        velocity = self.velocity[begin:end:self.skip,:]
-        if not self.rnn:
-            position = position.flatten()
-            velocity = velocity.flatten()
-        torque = self.torque[end-self.skip,:]
-        jacobian = self.jacobian[end-self.skip, :]
-        return position, velocity, torque, jacobian, time
-
-
-
