@@ -37,14 +37,12 @@ class trocarNetwork(nn.Module):
         self.activation = nn.ReLU()
         self.bn1 = nn.BatchNorm1d(512)
         self.bn2 = nn.BatchNorm1d(64)
-        self.tanh = nn.Tanh()
         
     def forward(self, x):
         x = self.layer1(x)
         x = self.activation(x)
         x = self.bn1(x)
         x = self.layer2(x)
-        x = self.tanh(x)
         return x
 
 # Network maps joint position and velocity to torque

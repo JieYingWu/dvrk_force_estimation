@@ -245,7 +245,7 @@ class trocarLearner(jointLearner):
                 fs_torque = fs_torque.permute(1,0)
                 posvel = posvel.view(posvel.size()[0], -1)
 
-            pred = self.network(posvel) * range_torque[self.joints]
+            pred = self.network(posvel)
             loss = self.loss_fn(pred.squeeze(), torque[:,-1,0]-fs_torque[:,-1])
             step_loss += loss.item()
 
@@ -271,7 +271,7 @@ class trocarTester(jointTester):
     def test(self, verbose=True):
         uncorrected_loss = torch.zeros(self.num_joints)
         corrected_loss = torch.zeros(self.num_joints)
-        for i, (position, velocity, torque, jacobian) in enumerate(self.loader):
+        for i, (position, velocity, torque, jacobian, time) in enumerate(self.loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
             posvel = torch.cat((position, velocity), axis=2).contiguous()
@@ -279,7 +279,7 @@ class trocarTester(jointTester):
             
             if(self.is_rnn):
                 fs_posvel = posvel.permute((1,0,2))
-            fs_torque = self.fs_network(fs_posvel)* range_torque[self.joints]
+            fs_torque = self.fs_network(fs_posvel) * range_torque[self.joints]
             
             if(self.is_rnn):
                 fs_torque = fs_torque.permute(1,0,2)
@@ -288,8 +288,6 @@ class trocarTester(jointTester):
 #            if self.num_joints == 1:
 #                fs_torque = fs_torque.unsqueeze(1)
 
-            print(fs_torque.size(), torque.size())
-
             for j in range(self.num_joints):
                 if self.is_rnn:
                     loss = self.loss_fn(fs_torque[:,-1,j], torque[:,-1,j])
@@ -297,14 +295,15 @@ class trocarTester(jointTester):
                     loss = self.loss_fn(fs_torque[:,j], torque[:,j])
                 uncorrected_loss[j] += loss.item()
 
-            pred = self.network(posvel)* range_torque[self.joints]
+            pred = self.network(posvel)
+            
             for j in range(self.num_joints):
                 if self.is_rnn:
-                    loss = self.loss_fn(pred.squeeze(), torque[:,-1,0]-fs_torque[:,-1])
+                    loss = self.loss_fn(pred.squeeze(), torque[:,-1,j]-fs_torque[:,-1,j])
                 else:
                     loss = self.loss_fn(pred[:,j]+fs_torque[:,j], torque[:,j])
                 corrected_loss[j] += loss.item()
 
         if verbose:
-            return uncorrected_loss, corrected_loss, torque.detach().cpu(), fs_torque.detach().cpu(), pred.detach().cpu(), jacobian
+            return uncorrected_loss, corrected_loss, torque.detach().cpu(), fs_torque.detach().cpu(), pred.detach().cpu(), jacobian, time
         return uncorrected_loss, corrected_loss

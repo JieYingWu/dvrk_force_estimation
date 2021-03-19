@@ -27,7 +27,7 @@ class indirectDataset(Dataset):
             jacobian = np.loadtxt(join(jacobian_path, cur_file), delimiter=',')
             all_jacobian = np.vstack((all_jacobian, jacobian)) if all_jacobian.size else jacobian
             
-#        self.time = all_joints[:,0].astype('float64') # Don't know why the time get written out weird
+        self.time = all_joints[:,0].astype('float64') # Don't know why the time get written out weird
         self.indices = torch.tensor(indices)
         position_indices = self.indices + 1
         velocity_indices = self.indices + 7
@@ -59,7 +59,7 @@ class indirectDataset(Dataset):
         remainder = idx % self.skip
         begin = quotient * self.window * self.skip + remainder
         end = begin + self.window * self.skip 
-#        time = self.time[end-self.skip]
+        time = self.time[end-self.skip]
         position = self.position[begin:end:self.skip,:]
         velocity = self.velocity[begin:end:self.skip,:]
         if self.is_rnn:
@@ -71,7 +71,7 @@ class indirectDataset(Dataset):
 
         #        cartesian = self.cartesian[idx*self.window+self.window,:]
         jacobian = self.jacobian[end-self.skip, :]
-        return position, velocity, torque, jacobian#, time
+        return position, velocity, torque, jacobian, time
 
 class indirectRnnDataset(Dataset):
     def __init__(self, path, window, indices = [0,1,2,3,4,5]):

@@ -8,7 +8,7 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 batch_size = 1000000
 fs_epoch = 1000
-contact = 'no_contact' # 'no_contact'
+contact = 'no_contact' 
 window = 100
 skip = 1
 
@@ -20,8 +20,11 @@ def main():
     path = '../data/csv/test/trocar/' + contact + '/' + exp
     in_joints = [0,1,2,3,4,5]
 
-    folder = "trocar_lstm" + str(joint)
+    fs_path = "free_space_lstm" + str(joint)
     fs_network = torqueLstmNetwork().to(device)
+    fs_network = load_model(fs_path, fs_epoch, fs_network, device)
+
+    folder = "trocar_lstm" + str(joint)
     network = trocarNetwork(window, len(in_joints), 1).to(device)
 
     model = trocarTester("trocar", folder, network, window, skip, [joint], in_joints, batch_size, device, fs_network, path, is_rnn=True, use_jaw=False)
