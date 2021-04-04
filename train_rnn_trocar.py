@@ -6,7 +6,7 @@ from utils import *
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 lr = 1e-3
-batch_size = 4096
+batch_size = 128
 epochs = 1000
 validate_each = 5
 fs_epoch = 1000
@@ -23,13 +23,13 @@ def main():
     in_joints = [0,1,2,3,4,5]
             
     fs_path = "free_space_lstm" + str(joint)
-    fs_network = torqueLstmNetwork().to(device)
+    fs_network = torqueLstmNetwork(batch_size, device).to(device)
     fs_network = load_model(fs_path, fs_epoch, fs_network, device)
 
     folder = "trocar_lstm" + str(joint)
     network = trocarNetwork(window, len(in_joints), 1).to(device)
 
-    model = trocarLearner(train_path, val_path, "trocar", folder, network, window, skip, [joint], in_joints, batch_size, lr, device, fs_network, is_rnn=True, use_jaw=False)
+    model = trocarLearner(train_path, val_path, folder, network, window, skip, [joint], in_joints, batch_size, lr, device, fs_network, is_rnn=True, use_jaw=False)
 
     print("Loaded a " + str(joint) + " model")
 

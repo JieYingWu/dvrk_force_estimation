@@ -17,6 +17,8 @@ class indirectDataset(Dataset):
          
         for cur_file in os.listdir(joint_path):
             joints = np.loadtxt(join(joint_path, cur_file), delimiter=',')
+            end_idx = int(joints.shape[0]/window)
+            joints = joints[0:end_idx * window, :]
             all_joints = np.vstack((all_joints, joints)) if all_joints.size else joints
 
             if use_jaw:
@@ -25,6 +27,7 @@ class indirectDataset(Dataset):
                 all_jaw = np.vstack((all_jaw, jaw)) if all_jaw.size else jaw
             
             jacobian = np.loadtxt(join(jacobian_path, cur_file), delimiter=',')
+            jacobian = jacobian[0:end_idx * window, :]
             all_jacobian = np.vstack((all_jacobian, jacobian)) if all_jacobian.size else jacobian
             
         self.time = all_joints[:,0].astype('float64') # Don't know why the time get written out weird
@@ -35,6 +38,7 @@ class indirectDataset(Dataset):
         self.position = all_joints[:,position_indices].astype('float32')
         self.velocity = all_joints[:,velocity_indices].astype('float32')
         self.torque = all_joints[:,13:19].astype('float32')
+        print(self.position.shape)
         if use_jaw:
             all_jaw = all_jaw.astype('float32')
             self.position = np.concatenate((self.position, all_jaw[:,0:1]), axis=1)
@@ -73,8 +77,14 @@ class indirectDataset(Dataset):
         jacobian = self.jacobian[end-self.skip, :]
         return position, velocity, torque, jacobian, time
 
+class indirectTrocarDataset(indirectDataset):
+    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], is_rnn=False, use_jaw=False):
+        super(indirectTorcarDataset, self).__init__(path, window, skip, indices = [0,1,2,3,4,5], is_rnn=False, use_jaw=False)
+        fs_pred = np.loadtxt(path + 'lstm_pred.csv')
+        self.torque = self.torque - fs_pred
+        
 class indirectRnnDataset(Dataset):
-    def __init__(self, path, window, indices = [0,1,2,3,4,5]):
+    def __init__(self, path, indices = [0,1,2,3,4,5]):
 
         self.position = []
         self.velocity = []
@@ -87,13 +97,11 @@ class indirectRnnDataset(Dataset):
             joints = np.loadtxt(join(joint_path, cur_file), delimiter=',')
             jacobian = np.loadtxt(join(jacobian_path, cur_file), delimiter=',')
             
-            for i in range(0,joints.shape[0]-window, window):
-                self.position.append(joints[i:i+window,1:7].astype('float32'))
-                self.velocity.append(joints[i:i+window,7:13].astype('float32'))
-                self.torque.append(joints[i:i+window,13:19].astype('float32'))
-                self.jacobian.append(jacobian[i:i+window,1:].astype('float32'))
+            self.position.append(joints[:,1:7].astype('float32'))
+            self.velocity.append(joints[:,7:13].astype('float32'))
+            self.torque.append(joints[:,13:19].astype('float32'))
+            self.jacobian.append(jacobian[:].astype('float32'))
             
-        
     def __len__(self):
         return len(self.position)
 

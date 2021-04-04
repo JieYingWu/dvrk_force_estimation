@@ -10,7 +10,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 max_torque = (torch.tensor([3.1051168, 2.5269854, 8.118658, 0.06744864, 0.1748129, 0.14781484, 0.08568161])).to(device)
 min_torque = (torch.tensor([-3.1137438, -3.1547165, -9.27689, -0.13118862, -0.16299911, -0.12941329,  -0.08511973])).to(device)
-range_torque = max_torque - min_torque
+range_torque = (max_torque - min_torque)/2 + 0.5*max_torque
 
 
 def nrmse_loss(y_hat, y, j=0, verbose=False):
@@ -36,7 +36,10 @@ def init_weights(m):
 
 def load_model(folder, epoch, network, device):
     model_root = Path('checkpoints') / "models_indirect" / folder
-    model_path = model_root / 'model_joint_{}.pt'.format(epoch)
+    if epoch == 0:
+        model_path = model_root / 'model_joint_best.pt'
+    else:
+        model_path = model_root / 'model_joint_{}.pt'.format(epoch)
     if model_path.exists():
         state = torch.load(str(model_path))
         network.load_state_dict(state['model'])
@@ -65,10 +68,11 @@ save = lambda ep, model, model_path, error, optimizer, scheduler: torch.save({
 
 class jointTester(object):
 
-    def __init__(self, data, folder, network, window, skip, out_joints,
+    def __init__(self, folder, network, window, skip, out_joints,
                  in_joints, batch_size, device, path, is_rnn=False, use_jaw=False):
+
         dataset = indirectDataset(path, window, skip, in_joints, is_rnn=is_rnn, use_jaw=use_jaw)
-        self.loader = DataLoader(dataset=dataset, batch_size = batch_size, shuffle=False)
+        self.loader = DataLoader(dataset=dataset, batch_size = batch_size, shuffle=False, drop_last=True)
 
         self.root = Path('checkpoints' ) 
         self.model_root = self.root / "models_indirect" / folder
@@ -81,7 +85,7 @@ class jointTester(object):
         self.is_rnn = is_rnn
 
     def load_prev(self, epoch):
-        if epoch == '0':
+        if epoch == 0:
             model_path = self.model_root / 'model_joint_best.pt'
         else:
             model_path = self.model_root / 'model_joint_{}.pt'.format(epoch)
@@ -98,24 +102,45 @@ class jointTester(object):
             
     def test(self, verbose=True):
         test_loss = torch.zeros(self.num_joints)
-        for i, (position, velocity, torque, jacobian) in enumerate(self.loader):
+        all_torque = None
+        all_pred = None
+        all_jacobian = None
+        all_time = None
+
+        for i, (position, velocity, torque, jacobian, time) in enumerate(self.loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
-            posvel = torch.cat((position, velocity), axis=1).contiguous()
-            torque = torque.to(self.device)[:,self.joints]
-            
-            pred = self.network(posvel).detach() * range_torque[self.joints] + min_torque[self.joints]
+            posvel = torch.cat((position, velocity), axis=2).contiguous()
+            torque = torque.to(self.device)[:, :, self.joints]
+
+            if(self.is_rnn):
+                posvel = posvel.permute((1,0,2))
+                torque = torque.permute((1,0,2))
+                
+            pred = self.network(posvel) * range_torque[self.joints] #+ min_torque[self.joints]
+
             for j in range(self.num_joints):
-                loss = self.loss_fn(pred[:,j], torque[:,j],self.joints[j],verbose=True)
+                loss = self.loss_fn(pred, torque)
                 test_loss[j] += loss.item()
+            
+            if all_torque is None:
+                all_torque = torque.detach().cpu()
+                all_pred = pred.detach().cpu()
+                all_jacobian = jacobian.detach().cpu()
+                all_time = time.detach().cpu()
+            else:
+                all_torque = torch.cat((all_torque, torque.detach().cpu()), axis=0)
+                all_pred = torch.cat((all_pred, pred.detach().cpu()), axis=0)
+                all_jacobian = torch.cat((all_jacobian, jacobian.detach().cpu()), axis=0)
+                all_time = torch.cat((all_time, time.detach().cpu()), axis=0)
                 
         if verbose:
-            return test_loss, pred.detach().cpu(), jacobian
+            return test_loss, all_torque, all_pred, jacobian
         return test_loss
 
 class jointLearner(object):
     
-    def __init__(self, train_path, val_path, data, folder, network, window, skip, out_joints,
+    def __init__(self, train_path, val_path, folder, network, window, skip, out_joints,
                  in_joints, batch_size, lr, device, is_rnn=False, use_jaw=False):
 
         self.root = Path('checkpoints' ) 
@@ -136,20 +161,25 @@ class jointLearner(object):
         self.optimizer = torch.optim.SGD(self.network.parameters(), lr)
         self.scheduler = ReduceLROnPlateau(self.optimizer, verbose=True)
 
+
+#        if is_rnn:
+#            train_dataset = indirectRnnDataset(train_path)
+#            val_dataset = indirectRnnDataset(val_path)
+#        else:
         train_dataset = indirectDataset(train_path, window, skip, in_joints, is_rnn=is_rnn, use_jaw=use_jaw)
         val_dataset = indirectDataset(val_path, window, skip, in_joints, is_rnn=is_rnn, use_jaw=use_jaw)
-        self.train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
-        self.val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False)
+        self.train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=False, drop_last=True)
+        self.val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False, drop_last=True)
 
         self.loss_fn = torch.nn.MSELoss()
 
         init_weights(self.network)
         self.epoch = 1
 
-        self.best_loss = 100
+        self.best_loss = 10000
 
     def load_prev(self, epoch):
-        if epoch == '0':
+        if epoch == 0:
             model_path = self.model_root / 'model_joint_best.pt'
         else:
             model_path = self.model_root / 'model_joint_{}.pt'.format(epoch)
@@ -195,8 +225,8 @@ class jointLearner(object):
         tq.close()
 
     def step(self, loader, tq, train=False):
-        step_loss = 0
-        for i, (position, velocity, torque, jacobian) in enumerate(loader):
+        step_loss = 0 
+        for i, (position, velocity, torque, jacobian, time) in enumerate(loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
             posvel = torch.cat((position, velocity), axis=2).contiguous()
@@ -207,7 +237,7 @@ class jointLearner(object):
                 torque = torque.permute((1,0,2))
                 
             pred = self.network(posvel) * range_torque[self.joints] #+ min_torque[self.joints]
-            loss = self.loss_fn(pred, torque) 
+            loss = self.loss_fn(pred[100:,:,:], torque[100:,:,:]) 
             step_loss += loss.item()
 
             if (train):
@@ -222,15 +252,15 @@ class jointLearner(object):
 
     
 class trocarLearner(jointLearner):
-    def __init__(self, train_path, val_path, data, folder, network, window, skip, out_joints,
+    def __init__(self, train_path, val_path, folder, network, window, skip, out_joints,
                  in_joints, batch_size, lr, device, fs_network, is_rnn=False, use_jaw=False):
-        super(trocarLearner, self).__init__(train_path, val_path, data, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, is_rnn=is_rnn, use_jaw=use_jaw)
+        super(trocarLearner, self).__init__(train_path, val_path, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, is_rnn=is_rnn, use_jaw=use_jaw)
         
         self.fs_network = fs_network
 
     def step(self, loader, tq, train=False):
         step_loss = 0
-        for i, (position, velocity, torque, jacobian) in enumerate(loader):
+        for i, (position, velocity, torque, jacobian, time) in enumerate(loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
             posvel = torch.cat((position, velocity), axis=2).contiguous()
@@ -245,7 +275,7 @@ class trocarLearner(jointLearner):
                 fs_torque = fs_torque.permute(1,0)
                 posvel = posvel.view(posvel.size()[0], -1)
 
-            pred = self.network(posvel)
+            pred = self.network(torch.cat((posvel, fs_torque), axis=1))
             loss = self.loss_fn(pred.squeeze(), torque[:,-1,0]-fs_torque[:,-1])
             step_loss += loss.item()
 
@@ -261,9 +291,9 @@ class trocarLearner(jointLearner):
     
 class trocarTester(jointTester):
 
-    def __init__(self, data, folder, network, window, skip, out_joints,
+    def __init__(self, folder, network, window, skip, out_joints,
                  in_joints, batch_size, device, fs_network, path, is_rnn=False, use_jaw=False):
-        super(trocarTester, self).__init__(data, folder, network, window, skip, out_joints,
+        super(trocarTester, self).__init__(folder, network, window, skip, out_joints,
                                            in_joints, batch_size, device, path, is_rnn=is_rnn, use_jaw=use_jaw)
         
         self.fs_network = fs_network
@@ -271,6 +301,13 @@ class trocarTester(jointTester):
     def test(self, verbose=True):
         uncorrected_loss = torch.zeros(self.num_joints)
         corrected_loss = torch.zeros(self.num_joints)
+
+        all_fs_torque = None
+        all_torque = None
+        all_pred = None
+        all_jacobian = None
+        all_time = None
+        
         for i, (position, velocity, torque, jacobian, time) in enumerate(self.loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
@@ -279,7 +316,7 @@ class trocarTester(jointTester):
             
             if(self.is_rnn):
                 fs_posvel = posvel.permute((1,0,2))
-            fs_torque = self.fs_network(fs_posvel) * range_torque[self.joints]
+            fs_torque = self.fs_network(fs_posvel).detach() * range_torque[self.joints]
             
             if(self.is_rnn):
                 fs_torque = fs_torque.permute(1,0,2)
@@ -295,7 +332,8 @@ class trocarTester(jointTester):
                     loss = self.loss_fn(fs_torque[:,j], torque[:,j])
                 uncorrected_loss[j] += loss.item()
 
-            pred = self.network(posvel)
+            fs_torque_reshaped = fs_torque.view(fs_torque.size()[0], -1)
+            pred = self.network(torch.cat((posvel, fs_torque_reshaped), axis=1))
             
             for j in range(self.num_joints):
                 if self.is_rnn:
@@ -304,6 +342,18 @@ class trocarTester(jointTester):
                     loss = self.loss_fn(pred[:,j]+fs_torque[:,j], torque[:,j])
                 corrected_loss[j] += loss.item()
 
+            if all_torque is None:
+                all_fs_torque = fs_torque.detach().cpu()
+                all_torque = torque.detach().cpu()
+                all_pred = pred.detach().cpu()
+                all_jacobian = jacobian.detach().cpu()
+                all_time = time.detach().cpu()
+            else:
+                all_torque = torch.cat((all_torque, torque.detach().cpu()), axis=0)
+                all_fs_torque = torch.cat((all_fs_torque, fs_torque.detach().cpu()), axis=0)
+                all_pred = torch.cat((all_pred, pred.detach().cpu()), axis=0)
+                all_jacobian = torch.cat((all_jacobian, jacobian.detach().cpu()), axis=0)
+                all_time = torch.cat((all_time, time.detach().cpu()), axis=0)
         if verbose:
-            return uncorrected_loss, corrected_loss, torque.detach().cpu(), fs_torque.detach().cpu(), pred.detach().cpu(), jacobian, time
+            return uncorrected_loss, corrected_loss, all_torque, all_fs_torque, all_pred, all_jacobian, all_time
         return uncorrected_loss, corrected_loss

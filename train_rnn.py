@@ -7,7 +7,7 @@ from utils import *
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 lr = 1e-3
-batch_size = 4096
+batch_size = 128
 epochs = 1000
 validate_each = 5
 use_previous_model = False
@@ -22,13 +22,13 @@ def main():
     val_path = join('..','data','csv','val', data)
     
     in_joints = [0,1,2,3,4,5]
-    window = 100
+    window = 500
     skip = 1
     
     folder = data + "_lstm" + str(joint)
     
-    network = torqueLstmNetwork()
-    model = jointLearner(train_path, val_path, data, folder, network, window, skip, [joint], in_joints, batch_size, lr, device, is_rnn=True)
+    network = torqueLstmNetwork(batch_size, device)
+    model = jointLearner(train_path, val_path, folder, network, window, skip, [joint], in_joints, batch_size, lr, device, is_rnn=True)
     
     print("Loaded a " + data + " model for joint " + str(joint))
         
