@@ -13,7 +13,7 @@ force_data = readmatrix([force_path, joint_folder(3).name]);
 uncorrected_pred_forces = readmatrix(['uncorrected_forces_', exp, '.csv']);
 corrected_pred_forces = readmatrix(['corrected_forces_', exp, '.csv']);
 
-axis_to_plot = [2];
+axis_to_plot = [1];
 uncorrected_predicted = uncorrected_pred_forces(:,axis_to_plot+1);
 corrected_predicted = corrected_pred_forces(:,axis_to_plot+1);
 %predicted(predicted > 0) = 0;

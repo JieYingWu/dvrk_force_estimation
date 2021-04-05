@@ -8,15 +8,15 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 batch_size = 1
 epoch_to_use = 0
-contact = ''#'no_contact' 
-window = 500
+contact = 'with_contact'
+window = 5
 skip = 1
 
 def main():
     all_pred = None
     for joint in range(6):
-        exp = ''#sys.argv[1]
-        path = '../data/csv/val/trocar/' + contact + '/'
+        exp = sys.argv[1]
+        path = '../data/csv/test/trocar/' + contact + '/' + exp + '/'
         in_joints = [0,1,2,3,4,5]
 
         folder = "free_space_lstm" + str(joint)

@@ -255,28 +255,36 @@ class trocarLearner(jointLearner):
     def __init__(self, train_path, val_path, folder, network, window, skip, out_joints,
                  in_joints, batch_size, lr, device, fs_network, is_rnn=False, use_jaw=False):
         super(trocarLearner, self).__init__(train_path, val_path, folder, network, window, skip, out_joints, in_joints, batch_size, lr, device, is_rnn=is_rnn, use_jaw=use_jaw)
+
+        train_dataset = indirectTrocarDataset(train_path, window, skip, in_joints, is_rnn=is_rnn, use_jaw=use_jaw)
+        val_dataset = indirectTrocarDataset(val_path, window, skip, in_joints, is_rnn=is_rnn, use_jaw=use_jaw)
+        self.train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=False, drop_last=True)
+        self.val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False, drop_last=True)
+
         
         self.fs_network = fs_network
 
     def step(self, loader, tq, train=False):
         step_loss = 0
-        for i, (position, velocity, torque, jacobian, time) in enumerate(loader):
+        for i, (position, velocity, torque, jacobian, time, fs_pred) in enumerate(loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
-            posvel = torch.cat((position, velocity), axis=2).contiguous()
+            fs_pred = fs_pred[:, :, self.joints].to(self.device)
+            posvel = torch.cat((position, velocity, fs_pred), axis=2).contiguous()
             torque = torque.to(self.device)[:, :, self.joints]
 
-            if(self.is_rnn):
-                fs_posvel = posvel.permute((1,0,2))
+
+#            if(self.is_rnn):
+#                fs_posvel = posvel.permute((1,0,2))
             
-            fs_torque = self.fs_network(fs_posvel).squeeze().detach() * range_torque[self.joints]
+#            fs_torque = self.fs_network(fs_posvel).squeeze().detach() * range_torque[self.joints]
 
             if(self.is_rnn):
-                fs_torque = fs_torque.permute(1,0)
+#                fs_torque = fs_torque.permute(1,0)
                 posvel = posvel.view(posvel.size()[0], -1)
 
-            pred = self.network(torch.cat((posvel, fs_torque), axis=1))
-            loss = self.loss_fn(pred.squeeze(), torque[:,-1,0]-fs_torque[:,-1])
+            pred = self.network(posvel)
+            loss = self.loss_fn(pred.squeeze(), torque[:,-1,0])
             step_loss += loss.item()
 
             if (train):
@@ -295,31 +303,28 @@ class trocarTester(jointTester):
                  in_joints, batch_size, device, fs_network, path, is_rnn=False, use_jaw=False):
         super(trocarTester, self).__init__(folder, network, window, skip, out_joints,
                                            in_joints, batch_size, device, path, is_rnn=is_rnn, use_jaw=use_jaw)
-        
-        self.fs_network = fs_network
-
+        dataset = indirectTrocarDataset(path, window, skip, in_joints, is_rnn=is_rnn, use_jaw=use_jaw)
+        self.loader = DataLoader(dataset=dataset, batch_size = batch_size, shuffle=False, drop_last=True)
+   
     def test(self, verbose=True):
         uncorrected_loss = torch.zeros(self.num_joints)
         corrected_loss = torch.zeros(self.num_joints)
 
-        all_fs_torque = None
+        all_fs_pred = None
         all_torque = None
         all_pred = None
         all_jacobian = None
         all_time = None
         
-        for i, (position, velocity, torque, jacobian, time) in enumerate(self.loader):
+        for i, (position, velocity, torque, jacobian, time, fs_pred) in enumerate(self.loader):
             position = position.to(self.device)
             velocity = velocity.to(self.device)
-            posvel = torch.cat((position, velocity), axis=2).contiguous()
+            fs_pred = fs_pred[:, :, self.joints].to(self.device)
+            posvel = torch.cat((position, velocity, fs_pred), axis=2).contiguous()
             torque = torque.to(self.device)[:,:,self.joints]
             
-            if(self.is_rnn):
-                fs_posvel = posvel.permute((1,0,2))
-            fs_torque = self.fs_network(fs_posvel).detach() * range_torque[self.joints]
             
             if(self.is_rnn):
-                fs_torque = fs_torque.permute(1,0,2)
                 posvel = posvel.view(posvel.size()[0], -1)
                 
 #            if self.num_joints == 1:
@@ -332,8 +337,7 @@ class trocarTester(jointTester):
                     loss = self.loss_fn(fs_torque[:,j], torque[:,j])
                 uncorrected_loss[j] += loss.item()
 
-            fs_torque_reshaped = fs_torque.view(fs_torque.size()[0], -1)
-            pred = self.network(torch.cat((posvel, fs_torque_reshaped), axis=1))
+            pred = self.network(posvel)
             
             for j in range(self.num_joints):
                 if self.is_rnn:
@@ -343,17 +347,17 @@ class trocarTester(jointTester):
                 corrected_loss[j] += loss.item()
 
             if all_torque is None:
-                all_fs_torque = fs_torque.detach().cpu()
+                all_fs_pred = fs_pred.detach().cpu()
                 all_torque = torque.detach().cpu()
                 all_pred = pred.detach().cpu()
                 all_jacobian = jacobian.detach().cpu()
                 all_time = time.detach().cpu()
             else:
                 all_torque = torch.cat((all_torque, torque.detach().cpu()), axis=0)
-                all_fs_torque = torch.cat((all_fs_torque, fs_torque.detach().cpu()), axis=0)
+                all_fs_pred = torch.cat((all_fs_pred, fs_pred.detach().cpu()), axis=0)
                 all_pred = torch.cat((all_pred, pred.detach().cpu()), axis=0)
                 all_jacobian = torch.cat((all_jacobian, jacobian.detach().cpu()), axis=0)
                 all_time = torch.cat((all_time, time.detach().cpu()), axis=0)
         if verbose:
-            return uncorrected_loss, corrected_loss, all_torque, all_fs_torque, all_pred, all_jacobian, all_time
+            return uncorrected_loss, corrected_loss, all_torque, all_fs_pred, all_pred, all_jacobian, all_time
         return uncorrected_loss, corrected_loss

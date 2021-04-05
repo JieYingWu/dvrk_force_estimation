@@ -12,7 +12,7 @@ validate_each = 5
 fs_epoch = 1000
 use_previous_model = False
 epoch_to_use = 20    
-window = 100
+window = 5
 skip = 1
 
 def main():

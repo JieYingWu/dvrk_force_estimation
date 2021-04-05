@@ -79,9 +79,18 @@ class indirectDataset(Dataset):
 
 class indirectTrocarDataset(indirectDataset):
     def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], is_rnn=False, use_jaw=False):
-        super(indirectTorcarDataset, self).__init__(path, window, skip, indices = [0,1,2,3,4,5], is_rnn=False, use_jaw=False)
-        fs_pred = np.loadtxt(path + 'lstm_pred.csv')
-        self.torque = self.torque - fs_pred
+        super(indirectTrocarDataset, self).__init__(path, window, skip, indices = [0,1,2,3,4,5], is_rnn=is_rnn, use_jaw=False)
+        self.fs_pred = np.loadtxt(path + '/lstm_pred.csv').astype('float32')
+        self.torque = self.torque[0:self.fs_pred.shape[0], :] - self.fs_pred
+
+    def __getitem__(self, idx):
+        position, velocity, torque, jacobian, time = super(indirectTrocarDataset, self).__getitem__(idx)
+        quotient = int(idx / self.skip)
+        remainder = idx % self.skip
+        begin = quotient * self.window * self.skip + remainder
+        end = begin + self.window * self.skip 
+        fs_pred = self.fs_pred[begin:end:self.skip,:]
+        return position, velocity, torque, jacobian, time, fs_pred
         
 class indirectRnnDataset(Dataset):
     def __init__(self, path, indices = [0,1,2,3,4,5]):

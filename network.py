@@ -213,11 +213,11 @@ class torqueLstmNetwork(nn.Module):
         self.relu = nn.ReLU()
         self.tanh = nn.Tanh()
         self.linear1 = nn.Linear(int(hidden_dim/2), 1)
-#        self.hidden = self.init_hidden(self.batch_size, self.device)
+        self.hidden = self.init_hidden(self.batch_size, self.device)
         #self.bn0 = nn.BatchNorm1d(int(hidden_dim/2))
 
     def forward(self, x):
-        self.hidden = self.init_hidden(self.batch_size, self.device)
+#        self.hidden = self.init_hidden(self.batch_size, self.device)
         x, _ = self.lstm(x, self.hidden)
         x = self.linear0(x)
         x = self.relu(x)
