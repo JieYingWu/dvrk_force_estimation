@@ -14,6 +14,7 @@ class fsNetwork(nn.Module):
         self.bn1 = nn.BatchNorm1d(256)
         self.bn2 = nn.BatchNorm1d(128)
         self.bn3 = nn.BatchNorm1d(64)
+        self.tanh = nn.Tanh()
         
     def forward(self, x):
         x = self.layer1(x)
@@ -26,23 +27,28 @@ class fsNetwork(nn.Module):
         x = self.activation(x)
         x = self.bn3(x)
         x = self.layer4(x)
+        x = self.tanh(x)
         return x
     
 class trocarNetwork(nn.Module):
     def __init__(self, window, in_joints=6, out_joints=1):
         super(trocarNetwork, self).__init__()
 
-        self.layer1 = nn.Linear(window*in_joints*2+window, 512)
-        self.layer2 = nn.Linear(512, out_joints)
+        self.layer1 = nn.Linear(window*in_joints*2 + in_joints, 256)
+        self.layer2 = nn.Linear(256, out_joints)
+#        self.layer3 = nn.Linear(256, out_joints)
         self.activation = nn.ReLU()
         self.bn1 = nn.BatchNorm1d(512)
-        self.bn2 = nn.BatchNorm1d(64)
+        self.bn2 = nn.BatchNorm1d(256)
         
     def forward(self, x):
         x = self.layer1(x)
         x = self.activation(x)
-        x = self.bn1(x)
+#        x = self.bn1(x)
         x = self.layer2(x)
+#        x = self.activation(x)
+#        x = self.bn2(x)
+#        x = self.layer3(x)
         return x
 
 # Network maps joint position and velocity to torque
@@ -210,18 +216,17 @@ class torqueLstmNetwork(nn.Module):
         self.device = device
         self.lstm = nn.LSTM(joints*2, hidden_dim, num_layers)  
         self.linear0 = nn.Linear(hidden_dim, int(hidden_dim/2))
+        self.linear1 = nn.Linear(int(hidden_dim/2), 1)
         self.relu = nn.ReLU()
         self.tanh = nn.Tanh()
-        self.linear1 = nn.Linear(int(hidden_dim/2), 1)
         self.hidden = self.init_hidden(self.batch_size, self.device)
-        #self.bn0 = nn.BatchNorm1d(int(hidden_dim/2))
-
+ 
     def forward(self, x):
-#        self.hidden = self.init_hidden(self.batch_size, self.device)
+        self.hidden = self.init_hidden(self.batch_size, self.device)
         x, _ = self.lstm(x, self.hidden)
+#        x, self.hidden = self.lstm(x, self.hidden)
         x = self.linear0(x)
         x = self.relu(x)
-        #x = self.bn0(x)
         x = self.linear1(x)
         x = self.tanh(x)
         return x
