@@ -57,7 +57,7 @@ class indirectDataset(Dataset):
         position = self.position[begin:end:self.skip,:]
         velocity = self.velocity[begin:end:self.skip,:]
         if self.is_rnn:
-            time = self.time[begin:end:self.skip]
+            time = self.time[begin:end:self.skip].flatten()
             torque = self.torque[begin:end:self.skip,:]
         else:
             time = self.time[end-self.skip]
@@ -86,35 +86,30 @@ class indirectTrocarDataset(indirectDataset):
         end = begin + self.window * self.skip 
         fs_pred = self.fs_pred[end-self.skip,:]
         return position, velocity, torque, jacobian, time, fs_pred
-        
-class indirectRnnDataset(Dataset):
-    def __init__(self, path, indices = [0,1,2,3,4,5]):
 
-        self.position = []
-        self.velocity = []
-        self.torque = []
-        self.jacobian = []
-        joint_path = join(path, 'joints')
-        jacobian_path = join(path, 'jacobian')
+class indirectTrocarTestDataset(indirectDataset):
+    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], is_rnn=False, filter_signal=False):
+        super(indirectTrocarTestDataset, self).__init__(path, window, skip, indices = [0,1,2,3,4,5], is_rnn=is_rnn, filter_signal=filter_signal)
+        self.fs_pred = np.loadtxt(path + '/lstm_pred.csv').astype('float32')
+        self.fs_pred = self.fs_pred[:,1:]
 
-        for cur_file in os.listdir(joint_path):
-            joints = np.loadtxt(join(joint_path, cur_file), delimiter=',')
-            jacobian = np.loadtxt(join(jacobian_path, cur_file), delimiter=',')
-            
-            self.position.append(joints[:,1:7].astype('float32'))
-            self.velocity.append(joints[:,7:13].astype('float32'))
-            self.torque.append(joints[:,13:19].astype('float32'))
-            self.jacobian.append(jacobian[:].astype('float32'))
-            
     def __len__(self):
-        return len(self.position)
-
+        return self.fs_pred.shape[0] - self.window*self.skip
+        
     def __getitem__(self, idx):
-        position = self.position[idx]
-        velocity = self.velocity[idx]
-        torque = self.torque[idx]
-        jacobian = self.jacobian[idx]
-                               
-        return position, velocity, torque, jacobian
+        end = idx + self.window * self.skip 
+        position = self.position[idx:end:self.skip,:]
+        velocity = self.velocity[idx:end:self.skip,:]
+        if self.is_rnn:
+            time = self.time[idx:end:self.skip]
+            torque = self.torque[idx:end:self.skip,:]
+        else:
+            time = self.time[end-self.skip]
+            position = position.flatten()
+            velocity = velocity.flatten()
+            torque = self.torque[end-self.skip,:]
 
-    
+        jacobian = self.jacobian[end-self.skip, :]
+        fs_pred = self.fs_pred[end-self.skip,:]
+        return position, velocity, torque, jacobian, time, fs_pred
+

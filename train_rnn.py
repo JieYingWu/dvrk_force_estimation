@@ -12,7 +12,7 @@ epochs = 1000
 validate_each = 5
 use_previous_model = False
 epoch_to_use = 730
-
+is_rnn = True
 
 def main():
     joint = int(sys.argv[1])
@@ -22,13 +22,16 @@ def main():
     val_path = join('..','data','csv','val', data)
     
     in_joints = [0,1,2,3,4,5]
-    window = 200
     skip = 1
     
     folder = data + str(joint)
-    
-    network = fsNetwork(window) #torqueLstmNetwork(batch_size, device)
-    model = jointLearner(train_path, val_path, folder, network, window, skip, [joint], in_joints, batch_size, lr, device, is_rnn=False, filter_signal=True)
+
+    if is_rnn:
+        window = 1000
+        network = torqueLstmNetwork(batch_size, device)
+    else:
+        network = fsNetwork(window)
+    model = jointLearner(train_path, val_path, folder, network, window, skip, [joint], in_joints, batch_size, lr, device, is_rnn=is_rnn, filter_signal=False)
     
     print("Loaded a " + data + " model for joint " + str(joint))
         

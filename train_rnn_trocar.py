@@ -9,11 +9,9 @@ lr = 1e-3
 batch_size = 128
 epochs = 1000
 validate_each = 5
-fs_epoch = 1000
+fs_epoch = 0
 use_previous_model = False
 epoch_to_use = 20
-window = 5
-skip = 1
 
 def main():
     joint = int(sys.argv[1])
@@ -22,14 +20,14 @@ def main():
 
     in_joints = [0,1,2,3,4,5]
             
-    fs_path = "lstm/free_space_lstm" + str(joint)
+    fs_path = "lstm/free_space" + str(joint)
     fs_network = torqueLstmNetwork(batch_size, device).to(device)
     fs_network = load_model(fs_path, fs_epoch, fs_network, device)
 
     folder = "trocar_lstm" + str(joint)
     network = trocarNetwork(window, len(in_joints), 1).to(device)
 
-    model = trocarLearner(train_path, val_path, folder, network, window, skip, [joint], in_joints, batch_size, lr, device, fs_network, is_rnn=False, filter_signal=False)
+    model = trocarLearner(train_path, val_path, folder, network, window, skip, [joint], in_joints, batch_size, lr, device, is_rnn=True, filter_signal=False)
 
     print("Loaded a " + str(joint) + " model")
 

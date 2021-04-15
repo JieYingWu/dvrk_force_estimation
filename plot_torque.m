@@ -1,32 +1,33 @@
+clear
 data = 'trocar';
-exp = 'exp0';
-test = 'test';
-if ~exist('joint_data', 'var')
-joint_path = ['../data/csv/test/', data, '/no_contact/', exp, '/joints/'];
+contact = 'no_contact';
+test_folder = 'test';
+file = 0;
+exp = ['exp',num2str(file)];
+if strcmp(test_folder, 'test')
+    joint_path = ['../data/csv/', test_folder, '/', data, '/', contact, '/joints/'];
+    fs_pred_path = ['../data/csv/', test_folder, '/', data, '/', contact, '/lstm_pred.csv'];
+else
+    joint_path = ['../data/csv/', test_folder, '/', data, '/joints/'];
+    fs_pred_path = ['../data/csv/', test_folder, '/', data, '/lstm_pred.csv'];
+end
+pred_path = 'no_contact_pred.csv';
+
 joint_folder = dir(joint_path);
-joint_data = [];
-for i = 3%:length(joint_folder)
-    temp_data = readmatrix([joint_path, joint_folder(i).name]); 
-    joint_data = [joint_data; temp_data];
-end
-end
+joint_data = readmatrix([joint_path, joint_folder(3).name]);
+fs_pred_data = readmatrix(fs_pred_path);
+pred_data = readmatrix(pred_path);
 
-arm_torque = readmatrix(['../results/', test, '/no_contact/', data, '/', exp, '/arm.csv']);
-insertion_torque = readmatrix(['../results/', test, '/no_contact/', data, '/', exp, '/insertion.csv']);
-wrist_torque = readmatrix(['../results/', test, '/no_contact/', data, '/', exp, '/wrist.csv']);
-length = size(joint_data);
-length = length(1);
-all_torques = zeros(length, 6);
-
-all_torques(length - size(arm_torque, 1) + 1:end, 1:2) = arm_torque(:,2:3);
-all_torques(length - size(insertion_torque, 1) + 1:end, 3) = insertion_torque(:,2);
-all_torques(length - size(wrist_torque, 1) + 1:end, 4:6) = wrist_torque(:,2:4);
-measured_torques = joint_data(:,14:19);
-axis_to_plot = 3;
+axis_to_plot = [1];
+measured_torque = joint_data(:,axis_to_plot+13);
+fs_pred_torque = fs_pred_data(:,axis_to_plot+1);
+pred_torque = pred_data(:,axis_to_plot+1);
 
 figure
-plot(measured_torques(:, axis_to_plot), 'b')
+plot(joint_data(:, 1), measured_torque, 'r')
+title(data)
 hold on
-plot(all_torques(:, axis_to_plot), 'r')
-legend('measured','pred')
+plot(fs_pred_data(:, 1), fs_pred_torque, 'b')
+plot(pred_data(:, 1), pred_torque, 'g') 
+legend('measured', 'predicted_fs', 'predicted')
 title('Torque')
