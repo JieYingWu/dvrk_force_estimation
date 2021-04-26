@@ -1,8 +1,9 @@
 import sys
 import torch
+from os.path import join
 from network import *
 import torch.nn as nn
-from utils import *
+import utils
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 lr = 1e-3
@@ -12,6 +13,7 @@ validate_each = 5
 fs_epoch = 0
 use_previous_model = False
 epoch_to_use = 20
+is_rnn = False
 
 def main():
     joint = int(sys.argv[1])
@@ -20,14 +22,10 @@ def main():
 
     in_joints = [0,1,2,3,4,5]
             
-    fs_path = "lstm/free_space" + str(joint)
-    fs_network = torqueLstmNetwork(batch_size, device).to(device)
-    fs_network = load_model(fs_path, fs_epoch, fs_network, device)
+    folder = "trocar" + str(joint)
+    network = trocarNetwork(utils.WINDOW, len(in_joints), 1).to(device)
 
-    folder = "trocar_lstm" + str(joint)
-    network = trocarNetwork(window, len(in_joints), 1).to(device)
-
-    model = trocarLearner(train_path, val_path, folder, network, window, skip, [joint], in_joints, batch_size, lr, device, is_rnn=True, filter_signal=False)
+    model = utils.trocarLearner(train_path, val_path, folder, network, utils.WINDOW, utils.SKIP, [joint], in_joints, batch_size, lr, device, is_rnn=is_rnn, filter_signal=False)
 
     print("Loaded a " + str(joint) + " model")
 

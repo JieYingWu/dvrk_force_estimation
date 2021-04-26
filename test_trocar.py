@@ -2,105 +2,86 @@ import sys
 import torch
 from network import *
 import torch.nn as nn
-from utils import *
+import utils
+from pathlib import Path
 import numpy as np
+from torch.utils.data import DataLoader
+from dataset import indirectTrocarTestDataset
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-batch_size = 1000000
-fs_epoch = 1000
-contact = 'no_contact' # 'no_contact'
+batch_size = 128
+fs_epoch = 0
+data = 'trocar'
+contact = 'no_contact'
+net = 'ff'
+preprocess = 'filtered_torque'
+epoch_to_use = int(sys.argv[1])
+is_rnn = False
 
-
-def make_arm_model(path):
-    out_joints = [0,1]
-    in_joints = [0,1,2,3,4,5]
-    window = 10
-    skip = 2
-    
-    folder = "free_space_arm_window"+str(window) + "_" + str(skip)
-    fs_network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
-    fs_network = load_model(folder, fs_epoch, fs_network, device)
-
-    folder = "trocar_arm_2_part_"+str(window) + '_' + str(skip)
-    network = trocarNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
-    model = trocarTester("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network, path)
-
-    return model
-
-def make_insertion_model(path):
-    out_joints = [2]
-    in_joints = [0,1,2,3,4,5]
-    window = 50
-    skip = 2
-    
-    folder = "free_space_insertion_window"+str(window) + "_" + str(skip)
-    fs_network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
-    fs_network = load_model(folder, fs_epoch, fs_network, device)
-
-    folder = "trocar_insertion_2_part_"+str(window) + '_' + str(skip)
-    network = trocarNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
-    model = trocarTester("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network, path)
-    return model
-
-def make_platform_model(path):
-    out_joints = [3]
-    in_joints = [0,1,2,3,4,5]
-    window = 2
-    skip = 1
-    
-    folder = "free_space_platform_window"+str(window) + "_" + str(skip)
-    fs_network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
-    fs_network = load_model(folder, fs_epoch, fs_network, device)
-
-    folder = "trocar_platform_2_part_"+str(window) + '_' + str(skip)
-    network = trocarNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
-    model = trocarTester("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network, path)
-    return model
-
-def make_wrist_model(path):
-    out_joints = [4,5]
-    in_joints = [0,1,2,3,4,5]
-    window = 2
-    skip = 1
-    
-    folder = "free_space_wrist_window"+str(window) + "_" + str(skip)
-    fs_network = fsNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
-    fs_network = load_model(folder, fs_epoch, fs_network, device)
-
-    folder = "trocar_wrist_2_part_"+str(window) + '_' + str(skip)
-    network = trocarNetwork(window, in_joints=len(in_joints), out_joints=len(out_joints))
-    model = trocarTester("trocar", folder, network, window, skip, out_joints, in_joints, batch_size, device, fs_network, path, use_jaw=True)
-    return model
+JOINTS = 6
+window = 20
+skip = 1
+root = Path('checkpoints' )
 
 def main():
-    joint_name = sys.argv[1]
     exp = sys.argv[2]
-    epoch_to_use = sys.argv[3] 
-    path = '../data/csv/test/trocar/' + contact + '/' + exp
-
-    if joint_name == "arm":
-        model = make_arm_model(path)
-    elif joint_name == "insertion":
-        model = make_insertion_model(path)
-    elif joint_name == "platform":
-        model = make_platform_model(path)
-    elif joint_name == "wrist":
-        model = make_wrist_model(path)
-    elif joint_name == "jaw":
-        model = make_jaw_model(path)
+    if exp == 'train':
+        path = '../data/csv/train/' + data + '/'
+    elif exp == 'val':
+        path = '../data/csv/val/' + data + '/'
+    elif exp =='test':
+        path = '../data/csv/test/' + data + '/' + contact + '/'
     else:
-        print("Unknown joint name")
-        return
+        path = '../data/csv/test/' + data + '/' + contact + '/' + exp + '/'
+    in_joints = [0,1,2,3,4,5]
+    all_pred = None
+
+    dataset = indirectTrocarTestDataset(path, window, skip, in_joints, is_rnn=is_rnn)
+    loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False, drop_last=True)
+
+    model_root = []
+    for j in range(JOINTS):
+        folder = "trocar" + str(j)
+        model_root.append(root / preprocess / net / folder)
+
+    networks = []
+    for j in range(JOINTS):
+        networks.append(trocarNetwork(utils.WINDOW, len(in_joints), 1).to(device))
+        utils.load_prev(networks[j], model_root[j], epoch_to_use)
+        print("Loaded a " + str(j) + " model")
+
+    all_pred = torch.tensor([])
+    uncorrected_loss = 0
+    corrected_loss = 0
+    loss_fn = torch.nn.MSELoss()
+
+    for i, (position, velocity, torque, jacobian, time, fs_pred) in enumerate(loader):
+        position = position.to(device)
+        velocity = velocity.to(device)
+        torque = torque.to(device)
+        fs_pred = fs_pred.to(device)
+
+        step_loss = 0
+        step_pred = time.unsqueeze(1)
+        
+        for j in range(JOINTS):
+            posvel = torch.cat((position, velocity, fs_pred[:,[j]]), axis=1).contiguous()
+            pred = networks[j](posvel) + fs_pred[:,j].unsqueeze(1)
+#            pred = networks[j](posvel)*utils.max_torque[j] + fs_pred[:,j].unsqueeze(1)
+            loss = loss_fn(pred.squeeze(), torque[:,j])
+            step_loss += loss.item()
+            step_pred = torch.cat((step_pred, pred.detach().cpu()), axis=1)
+
+        corrected_loss += step_loss / 6
+        uncorrected_loss += loss_fn(fs_pred, torque)
+
+        all_pred = torch.cat((all_pred, step_pred), axis=0) if all_pred.size() else step_pred
+        
+    print('Uncorrected loss: ', uncorrected_loss/len(loader))
+    print('Corrected loss: ', corrected_loss/len(loader))
     
-    print("Loaded a " + joint_name + " model")
-    model.load_prev(epoch_to_use)
-
-    uncorrected_loss, corrected_loss, torque, fs_pred, pred, jacobian, time = model.test(True)
-
-    all_torque = torch.cat((torque, fs_pred, pred), axis=1).numpy()
-
-    print('Uncorrected loss: ', uncorrected_loss)
-    print('Corrected loss: ', corrected_loss)
+    np.savetxt(path + '/no_contact_pred.csv', all_pred.numpy()) 
+    
 
 if __name__ == "__main__":
     main()
