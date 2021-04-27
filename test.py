@@ -7,17 +7,18 @@ import numpy as np
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 contact = 'no_contact'
-data = 'free_space'
+data = 'trocar'
 
-epoch_to_use = int(sys.argv[1])
-exp = sys.argv[2]
-net = sys.argv[3]
-preprocess = sys.argv[4]
+epoch_to_use = 0 #int(sys.argv[1])
+exp = sys.argv[1] #sys.argv[2]
+net = 'ff' #sys.argv[3]
+preprocess = 'filtered_torque'# sys.argv[4]
+filter_signal = False
 is_rnn = net == 'lstm'
 if is_rnn:
     batch_size = 1
 else:
-    batch_size = 128
+    batch_size = 8192
     
 def main():
     all_pred = None
@@ -32,7 +33,7 @@ def main():
     in_joints = [0,1,2,3,4,5]
     
     for joint in range(6):
-        folder = "free_space" + str(joint)
+        folder = "no_cannula" + str(joint)
         
         if is_rnn:
             window = 1000
@@ -41,7 +42,7 @@ def main():
             window = utils.WINDOW
             network = fsNetwork(window)
         
-        model = utils.jointTester(folder, network, window, utils.SKIP, [joint], in_joints, batch_size, device, path, is_rnn=is_rnn, preprocess=preprocess)
+        model = utils.jointTester(folder, network, window, utils.SKIP, [joint], in_joints, batch_size, device, path, is_rnn=is_rnn, filter_signal=filter_signal, preprocess=preprocess)
 
         print("Loaded a " + str(joint) + " model")
         model.load_prev(epoch_to_use)
@@ -54,7 +55,7 @@ def main():
         print(all_pred.size())
         all_pred = torch.cat((all_pred, pred.unsqueeze(1)), axis=1)
 
-    np.savetxt(path + net + '_pred_' + preprocess + '.csv', all_pred.numpy())
+    np.savetxt(path + net + '_base_pred_' + preprocess + '.csv', all_pred.numpy())
 
         
     print('Loss: ', loss)

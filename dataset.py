@@ -78,16 +78,17 @@ class indirectTestDataset(indirectDataset):
         return position, velocity, torque, jacobian, time
     
 class indirectTrocarDataset(indirectDataset):
-    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], is_rnn=False, filter_signal=False):
+    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], num=1e9, is_seal=False, filter_signal=False):
         super(indirectTrocarDataset, self).__init__(path, window, skip, indices = [0,1,2,3,4,5], is_rnn=False, filter_signal=filter_signal)
-        if is_rnn:
-            self.fs_pred = np.loadtxt(path + '/lstm_pred_filtered_torque.csv').astype('float32')
+        if is_seal:
+            self.fs_pred = np.loadtxt(path + '/ff_seal_pred_filtered_torque.csv').astype('float32')
         else:
-            self.fs_pred = np.loadtxt(path + '/ff_pred_filtered_torque.csv').astype('float32')
+            self.fs_pred = np.loadtxt(path + '/ff_base_pred_filtered_torque.csv').astype('float32')
         self.fs_pred = self.fs_pred[:,1:]
+        self.num=num
 
     def __len__(self):
-        return int(180000/self.window) - self.skip
+        return int(min(self.fs_pred.shape[0], self.num * 1000)/self.window) - self.skip
         
     def __getitem__(self, idx):
         quotient = int(idx / self.skip)
@@ -95,12 +96,13 @@ class indirectTrocarDataset(indirectDataset):
         begin = quotient * self.window * self.skip + remainder
         end = begin + self.window * self.skip
         position, velocity, torque, jacobian, time = self.genitem(begin, end)
-        fs_pred = self.fs_pred[end-self.skip,:]
+        fs_pred = self.fs_pred[begin:end:self.skip,:]
+        fs_pred = fs_pred.flatten()
         return position, velocity, torque, jacobian, time, fs_pred
 
 class indirectTrocarTestDataset(indirectTrocarDataset):
-    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], is_rnn=False, filter_signal=False):
-        super(indirectTrocarTestDataset, self).__init__(path, window, skip, indices = [0,1,2,3,4,5], is_rnn=is_rnn, filter_signal=filter_signal)
+    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], is_seal=False, filter_signal=False):
+        super(indirectTrocarTestDataset, self).__init__(path, window, skip, indices = [0,1,2,3,4,5], is_seal=is_seal, filter_signal=filter_signal)
 
     def __len__(self):
         return self.fs_pred.shape[0] - self.window*self.skip
@@ -108,6 +110,7 @@ class indirectTrocarTestDataset(indirectTrocarDataset):
     def __getitem__(self, idx):
         end = idx + self.window * self.skip
         position, velocity, torque, jacobian, time = self.genitem(idx, end)
-        fs_pred = self.fs_pred[end-self.skip,:]
+        fs_pred = self.fs_pred[begin:end:self.skip,:]
+        fs_pred = fs_pred.flatten()
         return position, velocity, torque, jacobian, time, fs_pred
 

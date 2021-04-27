@@ -2,8 +2,9 @@ clear
 data = 'trocar';
 contact = 'with_contact';
 test_folder = 'test';
+seal = 'base';
 net = 'ff';
-times = {'30s', '60s', '90s', '120s', '150s', '180s'};
+times = {'60s', '120s', '180s', '240s', '300s', '360s'};
 
 %file = 3;
 all_fs_rms = [];
@@ -26,8 +27,8 @@ joint_folder = dir(joint_path);
 joint_data = readmatrix([joint_path, 'interpolated_all_joints']);
 force_data = readmatrix([force_path, joint_folder(3).name]);
 
-uncorrected_pred_forces = readmatrix(['../data/csv/', test_folder, '/', data, '/', contact, '/', exp, '/', 'uncorrected_forces_', net, '_', preprocess, '.csv']);
-corrected_pred_forces = readmatrix(['../data/csv/', test_folder, '/', data, '/', contact, '/', exp, '/', 'corrected_forces_', net, '_', preprocess, '.csv']);
+uncorrected_pred_forces = readmatrix(['../results/', data, '/', contact, '/', exp, '/', 'uncorrected_forces_', seal, '_',  net, '_', preprocess, '.csv']);
+corrected_pred_forces = readmatrix(['../results/', data, '/', contact, '/', exp, '/', 'corrected_forces_', seal, '_', net, '_', preprocess, '.csv']);
 
 uncorrected_interp = interp1(uncorrected_pred_forces(:,1), uncorrected_pred_forces, force_data(:,1));
 corrected_interp = interp1(corrected_pred_forces(:,1), corrected_pred_forces, force_data(:,1));

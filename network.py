@@ -28,18 +28,17 @@ class trocarNetwork(nn.Module):
     def __init__(self, window, in_joints=6, out_joints=1):
         super(trocarNetwork, self).__init__()
 
-        self.layer1 = nn.Linear(window*in_joints*2 + 1, 128)
-        self.layer2 = nn.Linear(128, out_joints)
-        self.layer3 = nn.Linear(128, out_joints)
+        self.layer1 = nn.Linear(window*in_joints*3, 256)
+#        self.layer2 = nn.Linear(128, 128)
+        self.layer3 = nn.Linear(256, out_joints)
         self.activation = nn.ReLU()
-        self.tanh = nn.Tanh()
         
     def forward(self, x):
         x = self.layer1(x)
         x = self.activation(x)
-        x = self.layer2(x)
+#        x = self.layer2(x)
 #        x = self.activation(x)
-#        x = self.layer3(x)
+        x = self.layer3(x)
 #        x = self.tanh(x)
         return x
 

@@ -86,7 +86,7 @@ class jointTester(object):
             dataset = indirectDataset(path, window, skip, in_joints, is_rnn=is_rnn, filter_signal=filter_signal)
         else:
             dataset = indirectTestDataset(path, window, skip, in_joints, is_rnn=is_rnn, filter_signal=filter_signal)
-        self.loader = DataLoader(dataset=dataset, batch_size = batch_size, shuffle=False, drop_last=True)
+        self.loader = DataLoader(dataset=dataset, batch_size = batch_size, shuffle=False, drop_last=False)
 
         self.root = Path('checkpoints' )
         if is_rnn:

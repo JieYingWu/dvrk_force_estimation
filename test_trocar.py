@@ -14,9 +14,10 @@ fs_epoch = 0
 data = 'trocar'
 contact = 'no_contact'
 net = 'ff'
-preprocess = 'filtered_torque'
+preprocess = 'filtered_torque_360s'
 epoch_to_use = int(sys.argv[1])
-is_rnn = False
+seal = sys.argv[3]
+is_seal = seal == 'seal'
 
 JOINTS = 6
 window = 20
@@ -36,12 +37,15 @@ def main():
     in_joints = [0,1,2,3,4,5]
     all_pred = None
 
-    dataset = indirectTrocarTestDataset(path, window, skip, in_joints, is_rnn=is_rnn)
-    loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False, drop_last=True)
+    dataset = indirectTrocarTestDataset(path, window, skip, in_joints, is_seal=is_seal)
+    loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False)
 
     model_root = []
     for j in range(JOINTS):
-        folder = "trocar" + str(j)
+        if is_seal:
+            folder = "trocar" + str(j)
+        else:
+            folder = "trocar_no_cannula" + str(j)
         model_root.append(root / preprocess / net / folder)
 
     networks = []
@@ -80,7 +84,7 @@ def main():
     print('Uncorrected loss: ', uncorrected_loss/len(loader))
     print('Corrected loss: ', corrected_loss/len(loader))
     
-    np.savetxt(path + '/no_contact_pred.csv', all_pred.numpy()) 
+    np.savetxt('../results/' + data + '/' + contact + '/torque_' + seal + '_pred.csv', all_pred.numpy()) 
     
 
 if __name__ == "__main__":
