@@ -1,13 +1,14 @@
 data = 'free_space';
 contact = 'no_contact';
 test_folder = 'test';
-rnn = 'ff';
-network = '_pred_filtered_torque_old.csv';
+rnn = 'lstm';
+network = '_seal_pred_filtered_torque.csv';
 
-loss = 0;
+%loss = 0;
+loss = [0,0,0,0];
 
 %for file = 0:3
-file = 1;
+file = 0;
 exp = ['exp',num2str(file)];
 
 if strcmp(test_folder, 'test')

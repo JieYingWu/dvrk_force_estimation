@@ -10,9 +10,9 @@ all_jacobian = np.array([])
 
 data = sys.argv[1]
 split = sys.argv[2]
-contact = 'no_contact'
-exp = sys.argv[2]
-path = join('..', 'data', 'csv', split, data)#, contact, exp)
+contact = 'with_contact'
+exp = sys.argv[3]
+path = join('..', 'data', 'csv', split, data, contact, exp)
 
 joint_path = join(path, 'joints')
 jacobian_path = join(path, 'jacobian')
@@ -45,7 +45,7 @@ start_time = np.max([joint_time[0], jacobian_time[0]])
 end_time = np.min([joint_time[-1], jacobian_time[-1]])
 print(start_time, end_time)
 
-interpolated_time = np.arange(start_time, end_time, 0.001)
+interpolated_time = np.arange(start_time, end_time, 0.005)
 interp_joints = np.zeros((interpolated_time.shape[0], 19))
 interp_joints[:,0] = interpolated_time
 
