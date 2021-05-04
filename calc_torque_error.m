@@ -1,19 +1,21 @@
 data = 'trocar';
 contact = 'no_contact';
 test_folder = 'test';
-seal = 'seal';
+seal = 'base';
 net = 'lstm';
-times = {'60s', '120s', '180s', '240s', '300s', '360s', '420s', '480s'};
+times = {'60s', '120s', '180s', '240s', '300s'};%, '360s'};%, '420s', '480s'};
 
 all_fs_rms = [];
 all_fs_std = [];
 all_rms = [];
 all_std = [];
 pad = 30;
+network = '_seal_pred_filtered_torque.csv';
 
 for t = 1:length(times)
 preprocess = ['filtered_torque_', times{t}];
 joint_path = ['../data/csv/', test_folder, '/', data, '/no_contact/joints/'];
+
 
 joint_folder = dir(joint_path);
 joint_data = readmatrix([joint_path, 'interpolated_all_joints']);

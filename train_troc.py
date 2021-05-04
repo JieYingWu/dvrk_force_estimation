@@ -12,15 +12,12 @@ from os.path import join
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-data = sys.argv[1]
+data = 'trocar'
 train_path = join('..', 'data', 'csv', 'train', data)
 val_path = join('..','data','csv','val', data)
 root = Path('checkpoints' )
-is_rnn = bool(int(sys.argv[2]))
-if is_rnn:
-    folder = 'lstm/' + data
-else:
-    folder = 'ff/' + data
+is_rnn = True
+folder = 'troc/' + data
 
 lr = 1e-3
 batch_size = 128
@@ -49,7 +46,7 @@ for j in range(JOINTS):
     optimizers.append(torch.optim.Adam(networks[j].parameters(), lr))
     schedulers.append(ReduceLROnPlateau(optimizers[j], verbose=True))
                           
-train_dataset = indirectDataset(train_path, window, SKIP, in_joints, is_rnn=is_rnn, filter_signal=f)
+train_dataset = indirectDataset(train_path, window, SKIP, in_joints, num=num, is_rnn=is_rnn, filter_signal=f)
 val_dataset = indirectDataset(val_path, window, SKIP, in_joints, is_rnn=is_rnn, filter_signal=f)
 train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=is_rnn)
 val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False, drop_last=is_rnn)

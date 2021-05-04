@@ -40,8 +40,8 @@ class trocarNetwork(nn.Module):
     def forward(self, x):
         x = self.layer1(x)
         x = self.activation(x)
-        x = self.layer2(x)
-        x = self.activation(x)
+#        x = self.layer2(x)
+#        x = self.activation(x)
         x = self.layer3(x)
         x = self.tanh(x)
         return x
@@ -62,10 +62,10 @@ class torqueLstmNetwork(nn.Module):
         self.hidden = self.init_hidden(self.batch_size, self.device)
  
     def forward(self, x):
-#        self.hidden = self.init_hidden(self.batch_size, self.device)
-#        x, _ = self.lstm(x, self.hidden)
-        x, self.hidden = self.lstm(x, self.hidden)
-        self.hidden = tuple(state.detach() for state in self.hidden)   
+        self.hidden = self.init_hidden(self.batch_size, self.device)
+        x, _ = self.lstm(x, self.hidden)
+#        x, self.hidden = self.lstm(x, self.hidden)
+#        self.hidden = tuple(state.detach() for state in self.hidden)   
         x = self.linear0(x)
         x = self.relu(x)
         x = self.linear1(x)

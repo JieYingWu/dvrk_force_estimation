@@ -5,7 +5,7 @@ from scipy import signal
 from torch.utils.data import Dataset
 
 class indirectDataset(Dataset):
-    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], is_rnn=False, filter_signal=False):
+    def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], num=1e9, is_rnn=False, filter_signal=False):
 
         all_joints = np.array([])
         joint_path = join(path, 'joints')
@@ -25,6 +25,7 @@ class indirectDataset(Dataset):
         self.window = window
         self.skip = skip
         self.is_rnn = is_rnn
+        self.num = num
 
         ## Filter signals
         if filter_signal:
@@ -35,7 +36,7 @@ class indirectDataset(Dataset):
                 self.torque[:,i] = signal.filtfilt(b, a, self.torque[:,i])
         
     def __len__(self):
-        return int(self.torque.shape[0]/self.window) - self.skip
+        return int(min(self.torque.shape[0], self.num * 200)/self.window) - self.skip
 
     def __getitem__(self, idx):
         quotient = int(idx / self.skip)

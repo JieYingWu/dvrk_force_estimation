@@ -19,32 +19,32 @@ jacobian = jacobian(pad+1:end, :);
 fs_pred = readmatrix(['../data/csv/', test_folder, '/', data, '/', contact, '/', exp, '/', net, '_seal_pred_filtered_torque.csv']);
 force_data = readmatrix([force_path, joint_folder(3).name]);
 
-uncorrected_pred_diff = readmatrix(['../results/', data, '/', contact, '/', exp, '/', 'uncorrected_', net, '_' seal, '_', preprocess, '.csv']);
-corrected_pred_diff = readmatrix(['../results/', data, '/', contact, '/', exp, '/', 'corrected_', net, '_', seal '_', preprocess, '.csv']);
+uncorrected_force = readmatrix(['../results/', data, '/', contact, '/', exp, '/', 'uncorrected_', net, '_' seal, '_', preprocess, '.csv']);
+corrected_force = readmatrix(['../results/', data, '/', contact, '/', exp, '/', 'corrected_', net, '_', seal '_', preprocess, '.csv']);
 filtered_torque = joint_data(:,14:19);
+ 
+% len = length(corrected_pred_diff);
+% uncorrected_force = zeros([len, 6]);
+% corrected_force = zeros([len, 6]);
+% for i = 1:len
+%     J = inv(reshape(jacobian(i,2:end), 6, 6)')';
+%     uncorrected_force(i,:)  = J * (uncorrected_pred_diff(i,2:7)');
+%     corrected_force(i,:)  = J * (corrected_pred_diff(i,2:7)');
+% end
 
-len = length(corrected_pred_diff);
-uncorrected_force = zeros([len, 6]);
-corrected_force = zeros([len, 6]);
-for i = 1:len
-    J = inv(reshape(jacobian(i,2:end), 6, 6)')';
-    uncorrected_force(i,:)  = J * (uncorrected_pred_diff(i,2:7)');
-    corrected_force(i,:)  = J * (corrected_pred_diff(i,2:7)');
-end
-
-uncorrected_force(:,4:6) = uncorrected_force(:,4:6)/-2.6931;
-corrected_force(:,4:6) = corrected_force(:,4:6)/-2.6931;
-uncorrected_force(:,6) = -uncorrected_force(:,6);
-corrected_force(:,6) = -corrected_force(:,6);
+uncorrected_force(:,5:6) = -uncorrected_force(:,5:6);
+corrected_force(:,5:6) = -corrected_force(:,5:6);
+uncorrected_force(:,5:7) = uncorrected_force(:,5:7)/2.5;
+corrected_force(:,5:7) = corrected_force(:,5:7)/2.5;
 
 
 axis_to_plot = [3];
-uncorrected_pred = uncorrected_force(:,axis_to_plot);
-corrected_pred = corrected_force(:,axis_to_plot);
+uncorrected_pred = uncorrected_force(:,axis_to_plot+1);
+corrected_pred = corrected_force(:,axis_to_plot+1);
 force = force_data(:,axis_to_plot+1);
 
-uncorrected_interp = interp1(uncorrected_pred_diff(:,1), uncorrected_pred, force_data(:,1));
-corrected_interp = interp1(corrected_pred_diff(:,1), corrected_pred, force_data(:,1));
+uncorrected_interp = interp1(uncorrected_force(:,1), uncorrected_pred, force_data(:,1));
+corrected_interp = interp1(corrected_force(:,1), corrected_pred, force_data(:,1));
 force = force(~isnan(corrected_interp));
 uncorrected_interp = uncorrected_interp(~isnan(corrected_interp));
 corrected_interp = corrected_interp(~isnan(corrected_interp));

@@ -24,6 +24,7 @@ def nrmse_loss(y_hat, y, j=0, verbose=False):
     denominator = y.max(axis=0).values-y.min(axis=0).values
     rmse = torch.sqrt(torch.mean((y_hat-y)**2, axis=0))
     nrmse = rmse/denominator #range_torque[j] #
+    
     return torch.mean(nrmse) * 100
 
 def relELoss(y_hat, y):

@@ -7,11 +7,10 @@ from network import trocarNetwork
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from utils import init_weights, WINDOW, SKIP, save, load_prev, max_torque
+from utils import init_weights, JOINTS, WINDOW, SKIP, save, load_prev, max_torque
 from os.path import join
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-JOINTS = 6
 
 data = 'trocar'
 train_path = join('..', 'data', 'csv', 'train', data)
@@ -25,8 +24,8 @@ if is_seal:
 else:
     folder = net + '/trocar_no_cannula'
 
-lr = 1e-3
-batch_size = 4096
+lr = 1e-4
+batch_size = 128
 epochs = 400
 validate_each = 5
 use_previous_model = False
@@ -37,9 +36,9 @@ print('Running for is_seal value: ', is_seal)
 loss_fn = torch.nn.MSELoss()
 
     
-for num in ['60', '120', '180', '240', '300', '360', '420', '480']:
+for num in ['60', '120', '180', '240', '300', '360']:
     model = 'filtered_torque_' + num + 's'
-    num = int(num)
+    n = int(num)
 
     try:
         temp = root / model 
@@ -64,8 +63,8 @@ for num in ['60', '120', '180', '240', '300', '360', '420', '480']:
         optimizers.append(torch.optim.Adam(networks[j].parameters(), lr))
         schedulers.append(ReduceLROnPlateau(optimizers[j], verbose=True))
                           
-    train_dataset = indirectTrocarDataset(train_path, WINDOW, SKIP, in_joints, num=num, seal=seal, filter_signal=f, net=net)
-    val_dataset = indirectTrocarDataset(val_path, WINDOW, SKIP, in_joints, num=num, seal=seal, filter_signal=f, net=net)
+    train_dataset = indirectTrocarDataset(train_path, WINDOW, SKIP, in_joints, num=n, seal=seal, filter_signal=f, net=net)
+    val_dataset = indirectTrocarDataset(val_path, WINDOW, SKIP, in_joints, num=n, seal=seal, filter_signal=f, net=net)
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
     
@@ -76,7 +75,6 @@ for num in ['60', '120', '180', '240', '300', '360', '420', '480']:
         except OSError:
             print("Model path exists")
  
-    # Read existing weights for both G and D models
     if use_previous_model:
         for j in range(JOINTS):
             epoch = load_prev(networks[j], model_root[j], epoch_to_use, optimizers[j], schedulers[j])
@@ -105,7 +103,7 @@ for num in ['60', '120', '180', '240', '300', '360', '420', '480']:
             step_loss = 0
 
             for j in range(JOINTS):
-                posvel = torch.cat((position, velocity, fs_pred[:,[j]]), axis=1).contiguous()       
+                posvel = torch.cat((position, velocity, fs_pred[:,[j]]), axis=1).contiguous()
                 pred = networks[j](posvel) + fs_pred[:,[j]]
         
                 loss = loss_fn(pred, torque[:,[j]])

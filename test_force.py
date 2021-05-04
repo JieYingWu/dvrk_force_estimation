@@ -21,7 +21,7 @@ skip = 1
 root = Path('checkpoints' )
 
 def main():
-    for t in ['60', '120', '180', '240', '300', '360', '420', '480']:#'20', '40', 
+    for t in ['60', '120', '180', '240', '300', '360']:#'20', '40', 
         preprocess = 'filtered_torque_' + t + 's' #sys.argv[3]
 
         for exp in ['exp0', 'exp1', 'exp2', 'exp3', 'exp4']:
@@ -73,13 +73,13 @@ def main():
                 all_time = torch.cat((all_time, time), axis=0) if all_time.size() else time
 
             all_time = all_time.unsqueeze(1)
-#            all_fs_force = utils.calculate_force(all_jacobian, all_fs_diff)
-            all_fs_force = torch.cat((all_time, all_fs_diff), axis=1)
+            all_fs_force = utils.calculate_force(all_jacobian, all_fs_diff)
+            all_fs_force = torch.cat((all_time, all_fs_force), axis=1)
             results_path = '../results/' + data + '/with_contact/' + exp 
             np.savetxt(results_path + '/uncorrected_' + net + '_' + seal + '_' + preprocess + '.csv', all_fs_force.numpy()) 
 
-#            all_force = utils.calculate_force(all_jacobian, all_diff)
-            all_force = torch.cat((all_time, all_diff), axis=1)
+            all_force = utils.calculate_force(all_jacobian, all_diff)
+            all_force = torch.cat((all_time, all_force), axis=1)
             np.savetxt(results_path + '/corrected_' + net + '_' + seal + '_' + preprocess + '.csv', all_force.numpy())
     
 if __name__ == "__main__":
