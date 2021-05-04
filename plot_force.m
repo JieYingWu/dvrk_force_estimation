@@ -3,67 +3,48 @@ data = 'trocar';
 contact = 'with_contact';
 test_folder = 'test';
 net = 'lstm';
-preprocess = 'filtered_torque_480s';
+preprocess = 'filtered_torque_300s';
 seal = 'seal';
 file = 1;
 pad = 30;
 exp = ['exp',num2str(file)];
-joint_path = ['../data/csv/', test_folder, '/', data, '/', contact, '/', exp, '/joints/'];
-jacobian_path = ['../data/csv/', test_folder, '/', data, '/', contact, '/', exp, '/jacobian/'];
 force_path = ['../data/csv/', test_folder, '/', data, '/', contact, '/', exp, '/sensor/'];
+force_data = readmatrix([force_path, 'bag_', num2str(file), '.csv']);
 
-joint_folder = dir(joint_path);
-joint_data = readmatrix([joint_path, 'interpolated_all_joints']);
-jacobian = readmatrix([jacobian_path, 'interpolated_all_jacobian']);
-jacobian = jacobian(pad+1:end, :);
-fs_pred = readmatrix(['../data/csv/', test_folder, '/', data, '/', contact, '/', exp, '/', net, '_seal_pred_filtered_torque.csv']);
-force_data = readmatrix([force_path, joint_folder(3).name]);
-
+troc_force = readmatrix(['../results/', data, '/', contact, '/', exp, '/', 'lstm_troc_', preprocess, '.csv']);
 uncorrected_force = readmatrix(['../results/', data, '/', contact, '/', exp, '/', 'uncorrected_', net, '_' seal, '_', preprocess, '.csv']);
 corrected_force = readmatrix(['../results/', data, '/', contact, '/', exp, '/', 'corrected_', net, '_', seal '_', preprocess, '.csv']);
-filtered_torque = joint_data(:,14:19);
  
-% len = length(corrected_pred_diff);
-% uncorrected_force = zeros([len, 6]);
-% corrected_force = zeros([len, 6]);
-% for i = 1:len
-%     J = inv(reshape(jacobian(i,2:end), 6, 6)')';
-%     uncorrected_force(i,:)  = J * (uncorrected_pred_diff(i,2:7)');
-%     corrected_force(i,:)  = J * (corrected_pred_diff(i,2:7)');
-% end
-
+troc_force(:,5:6) = -troc_force(:,5:6);
 uncorrected_force(:,5:6) = -uncorrected_force(:,5:6);
 corrected_force(:,5:6) = -corrected_force(:,5:6);
+troc_force(:,5:7) = troc_force(:,5:7)/2.5;
 uncorrected_force(:,5:7) = uncorrected_force(:,5:7)/2.5;
 corrected_force(:,5:7) = corrected_force(:,5:7)/2.5;
 
+troc_force = troc_force(troc_force(:,1) > 38 & troc_force(:,1) < 45.9, :);
+uncorrected_force = uncorrected_force(uncorrected_force(:,1) > 38 & uncorrected_force(:,1) < 45.9, :);
+corrected_force = corrected_force(corrected_force(:,1) > 38 & corrected_force(:,1) < 45.9, :);
+force_data = force_data(force_data(:,1) > 38 & force_data(:,1) < 45.9, :);
 
-axis_to_plot = [3];
-uncorrected_pred = uncorrected_force(:,axis_to_plot+1);
-corrected_pred = corrected_force(:,axis_to_plot+1);
-force = force_data(:,axis_to_plot+1);
-
-uncorrected_interp = interp1(uncorrected_force(:,1), uncorrected_pred, force_data(:,1));
-corrected_interp = interp1(corrected_force(:,1), corrected_pred, force_data(:,1));
-force = force(~isnan(corrected_interp));
-uncorrected_interp = uncorrected_interp(~isnan(corrected_interp));
-corrected_interp = corrected_interp(~isnan(corrected_interp));
-fs_loss = rms(uncorrected_interp - force)
-loss = rms(corrected_interp - force)
-time = force_data(~isnan(corrected_interp), 1);
-
+titles = {'Fx', 'Fy', 'Fz', 'Tx', 'Ty', 'Tz'};
 figure
-plot(time, uncorrected_interp, 'r')
-title(data)
-hold on
-plot(time, corrected_interp, 'g') 
-plot(time, force, 'b')
-legend('uncorrected', 'corrected', 'measured')
-title('Force')
-
-figure
-plot(joint_data(:,1), joint_data(:,axis_to_plot+13))
-hold on
-plot(fs_pred(:,1), fs_pred(:,axis_to_plot+1))
-legend('Measured', 'fs')
-hold off
+for axis = 2:7
+    subplot(2,3,axis-1);
+    plot(troc_force(:,1)-38, troc_force(:,axis),'Color', [0, 0.4, 0])
+    title(data)
+    hold on
+    plot(uncorrected_force(:,1)-38, uncorrected_force(:,axis),'b')
+    plot(corrected_force(:,1)-38, corrected_force(:,axis),'m')
+    plot(force_data(:,1)-38, force_data(:,axis),'k')
+    title(titles{axis-1}, 'FontSize',16);
+    xlabel('Time (s)', 'FontSize',12)
+    if axis < 5
+        ylabel('Force (Nm)', 'FontSize',12)
+    else
+        ylabel('Torque (Nm)', 'FontSize',12)
+    end
+    hold off
+end
+legend('troc', 'seal', 'seal+corr', 'sensor')
+    

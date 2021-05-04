@@ -36,7 +36,7 @@ print('Running for is_seal value: ', is_seal)
 loss_fn = torch.nn.MSELoss()
 
     
-for num in ['60', '120', '180', '240', '300', '360']:
+for num in ['60', '120', '180', '240', '300', '360', '420', '480']:
     model = 'filtered_torque_' + num + 's'
     n = int(num)
 

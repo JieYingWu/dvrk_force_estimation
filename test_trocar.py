@@ -17,18 +17,17 @@ epoch_to_use = 0#int(sys.argv[1])
 seal = sys.argv[2]
 is_seal = seal == 'seal'
 
-JOINTS = 6
+JOINTS = utils.JOINTS
 root = Path('checkpoints' )
 
 def main():
     path = '../data/csv/test/' + data + '/' + contact + '/'
     in_joints = [0,1,2,3,4,5]
-    all_pred = None
 
     dataset = indirectTrocarTestDataset(path, utils.WINDOW, utils.SKIP, in_joints, seal=seal, net=net)
     loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False)
 
-    for t in ['60', '120', '180', '240', '300', '360']:
+    for t in ['60', '120', '180', '240', '300']:
         preprocess = 'filtered_torque_' + t + 's'
         
         model_root = []

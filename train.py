@@ -63,7 +63,6 @@ for j in range(JOINTS):
     except OSError:
         print("Model path exists")
 
-# Read existing weights for both G and D models
 if use_previous_model:
     for j in range(JOINTS):
         epoch = load_prev(networks[j], model_root[j], epoch_to_use, optimizers[j], schedulers[j])

@@ -27,6 +27,10 @@ class indirectDataset(Dataset):
         self.is_rnn = is_rnn
         self.num = num
 
+        jacobian_path = join(path, 'jacobian')
+        all_jacobian = np.loadtxt(join(jacobian_path, 'interpolated_all_jacobian.csv'), delimiter=',')
+        self.jacobian = all_jacobian[:,1:].astype('float32')
+        
         ## Filter signals
         if filter_signal:
             b, a = signal.butter(2, 0.02)
@@ -44,7 +48,8 @@ class indirectDataset(Dataset):
         begin = quotient * self.window * self.skip + remainder
         end = begin + self.window * self.skip
         position, velocity, torque,  time = self.genitem(begin, end)
-        return position, velocity, torque, time
+        jacobian = self.jacobian[begin:end:self.skip,:]
+        return position, velocity, torque, jacobian, time
 
     def genitem(self, begin, end):
         position = self.position[begin:end:self.skip,:]
@@ -102,9 +107,6 @@ class indirectTrocarDataset(indirectDataset):
 class indirectTrocarTestDataset(indirectTrocarDataset):
     def __init__(self, path, window, skip, indices = [0,1,2,3,4,5], seal='base', filter_signal=False, net='ff'):
         super(indirectTrocarTestDataset, self).__init__(path, window, skip, indices = [0,1,2,3,4,5], seal=seal, filter_signal=filter_signal, net=net)
-        jacobian_path = join(path, 'jacobian')
-        all_jacobian = np.loadtxt(join(jacobian_path, 'interpolated_all_jacobian.csv'), delimiter=',')
-        self.jacobian = all_jacobian[:,1:].astype('float32')
         
     def __len__(self):
         return self.fs_pred.shape[0] - self.window*self.skip -0 

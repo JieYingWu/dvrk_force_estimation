@@ -22,7 +22,7 @@ folder = 'lstm/free_space'
 j = int(sys.argv[1])
 
 lr = 1e-3
-batch_size = 1
+batch_size = 128
 epochs = 400
 use_previous_model = False
 epoch_to_use = 10
@@ -93,7 +93,7 @@ for num in ['60', '120', '180', '240', '300']:
 
     end = time.time()
 
-    model_path = model_root / "model_joint_best.pt"
-    save(e, network, model_path, step_loss, optimizer, scheduler)
+#    model_path = model_root / "model_joint_best.pt"
+#    save(e, network, model_path, step_loss, optimizer, scheduler)
     
     print('Ran for ', end-start, ' for n = ', n)

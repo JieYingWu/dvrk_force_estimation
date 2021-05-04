@@ -22,7 +22,7 @@ folder = 'lstm/trocar'
 j = int(sys.argv[1])
 
 lr = 1e-3
-batch_size = 100000
+batch_size = 128
 epochs = 400
 use_previous_model = False
 epoch_to_use = 10
