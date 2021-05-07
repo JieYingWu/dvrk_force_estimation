@@ -1,9 +1,9 @@
 data = 'trocar';
 contact = 'with_contact';
 test_folder = 'test';
-seal = 'base';
+seal = 'seal';
 net = 'lstm';
-times = {'120', '240', '360', '480', '600', '720', '840', '960', '1080'};%{'60s', '120s', '180s', '240s', '300s'};%, '360', '420s', '480s'};
+times = {'60s', '120s', '180s', '240s', '300s'};%, '360', '420s', '480s'};
 
 %file = 3;
 all_troc_rms = [];
@@ -22,14 +22,11 @@ all_uncorrected = [];
 all_corrected = [];
 all_force = [];
 
-for file = 0:4
-exp = ['exp',num2str(file)];
-force_path = ['../data/csv/', test_folder, '/', data, '/', contact, '/', exp, '/sensor/'];
-force_data = readmatrix([force_path, 'bag_', num2str(file), '.csv']);
-
-troc_force = readmatrix(['../results/', data, '/', contact, '/', exp, '/', 'lstm_troc_', preprocess, 's.csv']);
-uncorrected_force = readmatrix(['../results/', data, '/', contact, '/', exp, '/', 'uncorrected_', net, '_', seal, '_', preprocess, 's.csv']);
-corrected_force = readmatrix(['../results/', data, '/', contact, '/', exp, '/', 'corrected_', net, '_',  seal, '_', preprocess, 's.csv']);
+troc_force = readmatrix(['../results/', data, '/no_contact/test/', 'lstm_troc_', preprocess, '.csv']);
+uncorrected_force = readmatrix(['../results/', data, '/no_contact/test/', 'uncorrected_', net, '_', seal, '_', preprocess, '.csv']);
+corrected_force = readmatrix(['../results/', data, '/no_contact/test/', 'corrected_', net, '_',  seal, '_', preprocess, '.csv']);
+force_data = zeros(size(uncorrected_force));
+force_data(:,1) = corrected_force(:,1);
 
 troc_interp = interp1(troc_force(:,1), troc_force, force_data(:,1));
 uncorrected_interp = interp1(uncorrected_force(:,1), uncorrected_force, force_data(:,1));
@@ -44,7 +41,6 @@ all_troc = [all_troc; troc_interp];
 all_uncorrected = [all_uncorrected; uncorrected_interp];
 all_corrected = [all_corrected; corrected_interp];
 all_force = [all_force; force];
-end
 
 all_troc(:, 5:7) = all_troc(:,5:7)/2.5;
 all_uncorrected(:,5:7) = all_uncorrected(:,5:7)/2.5;
@@ -77,18 +73,14 @@ troc_std = std(troc_rmse, 1);
 all_troc_rms = [all_troc_rms; troc_rms];
 all_troc_std = [all_troc_std; troc_std];
 
-%all_force = all_force(:,2:end);
-%fs_loss = all_uncorrected - all_force;
 fs_rms = mean(uncorrected_rmse, 1);
 fs_std = std(uncorrected_rmse, 1);
 all_fs_rms = [all_fs_rms; fs_rms];
 all_fs_std = [all_fs_std; fs_std];
 
-%loss = all_corrected - all_force;
 corr_rms = mean(corrected_rmse, 1);
 corr_std = std(corrected_rmse, 1);
 all_rms = [all_rms; corr_rms];
 all_std = [all_std; corr_std];
 
 end
-

@@ -24,7 +24,7 @@ class fsNetwork(nn.Module):
         x = self.layer4(x)
         x = self.activation(x)
         x = self.layer5(x)
-#        x = self.tanh(x)
+        x = self.tanh(x)
         return x
     
 class trocarNetwork(nn.Module):
@@ -32,7 +32,7 @@ class trocarNetwork(nn.Module):
         super(trocarNetwork, self).__init__()
 
         self.layer1 = nn.Linear(window*in_joints*2+1, 256)
-        self.layer2 = nn.Linear(256, 256)
+        self.layer2 = nn.Linear(128, 256)
         self.layer3 = nn.Linear(256, out_joints)
         self.activation = nn.ReLU()
         self.tanh = nn.Tanh()
@@ -43,7 +43,7 @@ class trocarNetwork(nn.Module):
 #        x = self.layer2(x)
 #        x = self.activation(x)
         x = self.layer3(x)
-        x = self.tanh(x)
+#        x = self.tanh(x)
         return x
 
 # Vaguely inspired by LSTM from https://github.com/BerkeleyAutomation/dvrkCalibration/blob/cec2b8096e3a891c4dcdb09b3161e2a407fee0ee/experiment/3_training/modeling/models.py
@@ -62,10 +62,10 @@ class torqueLstmNetwork(nn.Module):
         self.hidden = self.init_hidden(self.batch_size, self.device)
  
     def forward(self, x):
-#        self.hidden = self.init_hidden(x.size()[0], self.device)
-#        x, _ = self.lstm(x, self.hidden)
-        x, self.hidden = self.lstm(x, self.hidden)
-        self.hidden = tuple(state.detach() for state in self.hidden)   
+        self.hidden = self.init_hidden(x.size()[0], self.device)
+        x, _ = self.lstm(x, self.hidden)
+#        x, self.hidden = self.lstm(x, self.hidden)
+#        self.hidden = tuple(state.detach() for state in self.hidden)   
         x = self.linear0(x)
         x = self.relu(x)
         x = self.linear1(x)

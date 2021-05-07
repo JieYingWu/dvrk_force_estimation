@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from dataset import indirectTestDataset, indirectDataset
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-contact = 'no_contact'
+contact = 'with_contact'
 data = 'trocar'
 
 JOINTS = utils.JOINTS
@@ -30,6 +30,8 @@ if seal == 'seal':
 elif seal =='base':
     fs = 'no_cannula'
 
+max_torque = torch.tensor(utils.max_torque).to(device)
+    
 def main():
     all_pred = None
     if exp == 'train':
@@ -37,7 +39,7 @@ def main():
     elif exp == 'val':
         path = '../data/csv/val/' + data + '/'
     elif exp =='test':
-        path = '../data/csv/test/' + data + '/' + contact + '/'
+        path = '../data/csv/test/' + data + '/no_contact/'
     else:
         path = '../data/csv/test/' + data + '/' + contact + '/' + exp + '/'
     in_joints = [0,1,2,3,4,5]
@@ -75,7 +77,7 @@ def main():
     all_pred = torch.tensor([])
     all_time = torch.tensor([])
 
-    for i, (position, velocity, torque, time) in enumerate(loader):
+    for i, (position, velocity, torque, jacobian, time) in enumerate(loader):
         position = position.to(device)
         velocity = velocity.to(device)
         if is_rnn: 
@@ -90,7 +92,7 @@ def main():
         cur_pred = torch.zeros(torque.size())
         for j in range(JOINTS):
             pred = networks[j](posvel).squeeze().detach()
-#            pred = pred * utils.range_torque[j].to(device)
+#            pred = pred * max_torque[j]
             cur_pred[:,j] = pred.cpu()
 
 #        loss = loss_fn(cur_pred, torque)

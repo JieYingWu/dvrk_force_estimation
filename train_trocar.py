@@ -31,12 +31,12 @@ validate_each = 5
 use_previous_model = False
 epoch_to_use = 10
 in_joints = [0,1,2,3,4,5]
-f = True
+f = False#True
 print('Running for is_seal value: ', is_seal)
 loss_fn = torch.nn.MSELoss()
 
     
-for num in ['60', '120', '180', '240', '300', '360', '420', '480']:
+for num in ['120', '240', '360', '480', '600', '720', '840', '960', '1080']:
     model = 'filtered_torque_' + num + 's'
     n = int(num)
 
@@ -83,7 +83,7 @@ for num in ['60', '120', '180', '240', '300', '360', '420', '480']:
             init_weights(networks[j])
         epoch = 1
 
-    print('Training for ' + str(epochs))
+    print('Training for ' + str(epochs) + ' and t = ' + num)
     best_loss = torch.zeros(6) + 1e10
 
     for e in range(epoch, epochs + 1):

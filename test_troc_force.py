@@ -12,7 +12,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 batch_size = 1
 data = 'trocar'
 epoch_to_use = 0#int(sys.argv[1])
-net = 'lstm'# sys.argv[1]
+net = 'troc'# sys.argv[1]
 seal = 'seal' #sys.argv[2]
 
 JOINTS = utils.JOINTS
@@ -22,13 +22,13 @@ root = Path('checkpoints')
 in_joints = [0,1,2,3,4,5]
 
 def main():
-    for t in ['60', '120', '180', '240', '300']:#'20', '40', 
+    for t in ['120', '240', '360', '480', '600', '720', '840', '960', '1080']:#]:#'20', '40', 
         preprocess = 'filtered_torque_' + t + 's' #sys.argv[3]
 
         for exp in ['exp0', 'exp1', 'exp2', 'exp3', 'exp4']:
             path = '../data/csv/test/' + data + '/with_contact/' + exp 
 
-            dataset = indirectDataset(path, window, skip, in_joints, filter_signal=True, is_rnn=True)
+            dataset = indirectDataset(path, window, skip, in_joints, filter_signal=False, is_rnn=True)
             loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False)
 
             model_root = []

@@ -31,7 +31,7 @@ f = True
 window = 1000
 print('Running for is_rnn value: ', is_rnn)
 
-for num in ['60', '120', '180', '240', '300']:
+for num in ['120', '240', '360', '480', '600', '720', '840', '960', '1080']:
     model = 'filtered_torque_' + num + 's'
     n = int(num)
 
@@ -75,7 +75,7 @@ for num in ['60', '120', '180', '240', '300']:
         epoch_loss = 0
         network.train()
     
-        for i, (position, velocity, torque, data_time) in enumerate(train_loader):
+        for i, (position, velocity, torque, jacobian, data_time) in enumerate(train_loader):
             position = position.to(device)
             velocity = velocity.to(device)
             torque = torque.to(device)

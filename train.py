@@ -7,7 +7,7 @@ from network import torqueLstmNetwork, fsNetwork
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from utils import init_weights, WINDOW, JOINTS, SKIP, range_torque, save, load_prev
+from utils import init_weights, WINDOW, JOINTS, SKIP, max_torque, save, load_prev
 from os.path import join
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -21,7 +21,8 @@ if is_rnn:
     folder = 'lstm/' + data
 else:
     folder = 'ff/' + data
-
+range_torque = torch.tensor(max_torque).to(device)
+    
 lr = 1e-3
 batch_size = 128
 epochs = 1000
@@ -29,7 +30,7 @@ validate_each = 5
 use_previous_model = False
 epoch_to_use = 40
 in_joints = [0,1,2,3,4,5]
-f = True
+f = False
 print('Running for is_rnn value: ', is_rnn)
 
 networks = []
@@ -51,8 +52,8 @@ for j in range(JOINTS):
                           
 train_dataset = indirectDataset(train_path, window, SKIP, in_joints, is_rnn=is_rnn, filter_signal=f)
 val_dataset = indirectDataset(val_path, window, SKIP, in_joints, is_rnn=is_rnn, filter_signal=f)
-train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=is_rnn)
-val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False, drop_last=is_rnn)
+train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+val_loader = DataLoader(dataset=val_dataset, batch_size = batch_size, shuffle=False)
     
 loss_fn = torch.nn.MSELoss()
 
@@ -83,7 +84,7 @@ for e in range(epoch, epochs + 1):
     for j in range(JOINTS):
         networks[j].train()
     
-    for i, (position, velocity, torque, time) in enumerate(train_loader):
+    for i, (position, velocity, torque, jacobian, time) in enumerate(train_loader):
         position = position.to(device)
         velocity = velocity.to(device)
         torque = torque.to(device)
@@ -95,7 +96,7 @@ for e in range(epoch, epochs + 1):
         step_loss = 0
 
         for j in range(JOINTS):
-            pred = networks[j](posvel)# * range_torque[j]
+            pred = networks[j](posvel) #* range_torque[j]
             if is_rnn:
                 loss = loss_fn(pred.squeeze(), torque[:,:,j])
             else:
@@ -116,7 +117,7 @@ for e in range(epoch, epochs + 1):
             networks[j].eval()
 
         val_loss = torch.zeros(JOINTS)
-        for i, (position, velocity, torque, time) in enumerate(val_loader):
+        for i, (position, velocity, torque, jacobian, time) in enumerate(val_loader):
             position = position.to(device)
             velocity = velocity.to(device)
             torque = torque.to(device)
@@ -126,7 +127,7 @@ for e in range(epoch, epochs + 1):
                 posvel = torch.cat((position, velocity), axis=1).contiguous()
 
             for j in range(JOINTS):
-                pred = networks[j](posvel) #* range_torque[j]
+                pred = networks[j](posvel)# * range_torque[j]
                 if is_rnn:
                     loss = loss_fn(pred.squeeze(), torque[:,:,j])
                 else:

@@ -17,8 +17,8 @@ train_path = join('..', 'data', 'csv', 'train', data)
 val_path = join('..','data','csv','val', data)
 root = Path('checkpoints' )
 is_rnn = True
-net = 'lstm'
-folder = 'troc/' + data
+net = 'troc'
+folder = net + '/' + data
 
 lr = 1e-3
 batch_size = 128
@@ -27,12 +27,12 @@ validate_each = 5
 use_previous_model = False
 epoch_to_use = 40
 in_joints = [0,1,2,3,4,5]
-f = True
+f = False
 print('Running for is_rnn value: ', is_rnn)
 loss_fn = torch.nn.MSELoss()
 
 
-for num in ['60', '120', '180', '240', '300']:
+for num in ['360', '480', '600', '720', '840', '960', '1080']:#'120', '240', 
     model = 'filtered_torque_' + num + 's'
     n = int(num)
 
@@ -42,6 +42,11 @@ for num in ['60', '120', '180', '240', '300']:
     except OSError:
         print("Model path exists")
 
+    try:
+        temp = root / model / net
+        temp.mkdir(mode=0o777, parents=False)
+    except OSError:
+        print("Net path exists")
     
     networks = []
     optimizers = []
@@ -75,7 +80,7 @@ for num in ['60', '120', '180', '240', '300']:
             init_weights(networks[j])
         epoch = 1
 
-    print('Training for ' + str(epochs))
+    print('Training for ' + str(epochs) ' and t = ', num)
     best_loss = torch.zeros(6) + 1e8
 
     for e in range(epoch, epochs + 1):
@@ -87,7 +92,7 @@ for num in ['60', '120', '180', '240', '300']:
         for j in range(JOINTS):
             networks[j].train()
     
-        for i, (position, velocity, torque, time) in enumerate(train_loader):
+        for i, (position, velocity, torque, jacobian, time) in enumerate(train_loader):
             position = position.to(device)
             velocity = velocity.to(device)
             torque = torque.to(device)
@@ -114,7 +119,7 @@ for num in ['60', '120', '180', '240', '300']:
                 networks[j].eval()
 
             val_loss = torch.zeros(JOINTS)
-            for i, (position, velocity, torque, time) in enumerate(val_loader):
+            for i, (position, velocity, torque, jacobian, time) in enumerate(val_loader):
                 position = position.to(device)
                 velocity = velocity.to(device)
                 torque = torque.to(device)

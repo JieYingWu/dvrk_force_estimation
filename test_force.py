@@ -20,15 +20,16 @@ window = utils.WINDOW
 skip = utils.SKIP
 root = Path('checkpoints' )
 in_joints = [0,1,2,3,4,5]
+contact = 'with_contact'
 
 def main():
-    for t in ['60', '120', '180', '240', '300', '360']:#'20', '40', 
+    for t in ['120', '240', '360', '480', '600', '720', '840', '960', '1080']:#'20', '40', 
         preprocess = 'filtered_torque_' + t + 's' #sys.argv[3]
 
-        for exp in ['exp0', 'exp1', 'exp2', 'exp3', 'exp4']:
-            path = '../data/csv/test/' + data + '/with_contact/' + exp 
+        for exp in ['exp0', 'exp1', 'exp2', 'exp3', 'exp4']:#['test']
+            path = '../data/csv/test/' + data + '/' + contact + '/' + exp 
 
-            dataset = indirectTrocarTestDataset(path, window, skip, in_joints, seal=seal, filter_signal=True, net=net)
+            dataset = indirectTrocarTestDataset(path, window, skip, in_joints, seal=seal, filter_signal=False, net=net)
             loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False)
 
             model_root = []
@@ -42,7 +43,7 @@ def main():
                 utils.load_prev(networks[j], model_root[j], epoch_to_use)
                 print("Loaded a " + str(j) + " model")
 
-            all_fs_diff = torch.tensor([])
+            all_fs_diff = torch.tensor([]) 
             all_diff = torch.tensor([])
             all_jacobian = torch.tensor([])
             all_time = torch.tensor([])
@@ -73,7 +74,7 @@ def main():
             all_time = all_time.unsqueeze(1)
             all_fs_force = utils.calculate_force(all_jacobian, all_fs_diff)
             all_fs_force = torch.cat((all_time, all_fs_force), axis=1)
-            results_path = '../results/' + data + '/with_contact/' + exp 
+            results_path = '../results/' + data + '/' + contact + '/' + exp 
             np.savetxt(results_path + '/uncorrected_' + net + '_' + seal + '_' + preprocess + '.csv', all_fs_force.numpy()) 
 
             all_force = utils.calculate_force(all_jacobian, all_diff)

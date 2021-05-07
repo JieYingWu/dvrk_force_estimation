@@ -27,7 +27,7 @@ def main():
     dataset = indirectTrocarTestDataset(path, utils.WINDOW, utils.SKIP, in_joints, seal=seal, net=net)
     loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False)
 
-    for t in ['60', '120', '180', '240', '300']:
+    for t in ['120', '240', '360', '480', '600', '720', '840', '960', '1080']:#['60', '120', '180', '240', '300', '360']:
         preprocess = 'filtered_torque_' + t + 's'
         
         model_root = []
