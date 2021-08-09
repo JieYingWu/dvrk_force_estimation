@@ -1,0 +1,22 @@
+/dvrk/PSM1/state_joint_current - first 6 joints position/velocity/effort
+/dvrk/PSM1/state_jaw_current - gripper position/velocity/effort
+/dvrk/PSM1/jacobian_spatial
+
+-1- Start ROS master:
+
+source catkin_ws/devel_release/setup.bash
+roscore
+
+-2- To run dVRK:
+
+roscd saw_intuitive_research_kit
+cd ../share
+rosrun dvrk_robot dvrk_console_json -j jhu-dVRK/console-MTMR-PSM1-Teleop.json -p 0.001 -i ros-io-PSM1.json
+
+- In the GUI, start teleoperation (possibly need to home)
+
+-3- To bag the data:
+
+rosbag record /dvrk/PSM1/state_joint_current /dvrk/PSM1/state_jaw_current /dvrk/PSM1/jacobian_spatial
+
+
