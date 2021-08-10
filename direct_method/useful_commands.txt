@@ -1,0 +1,36 @@
+Every time we open a new terminal window:
+    source ~/catkin_ws/devel_release/setup.bash
+
+Needed before turning robot on:
+    roscd dvrk_config/
+    qlacloserelays
+
+Sets up ROS Master, Parameter Server and logging node
+    roscore
+
+These comands allow us to extract info from robot: 
+    rostopic info
+    rostopic info /dvrk/PSMI/wrench_body_current
+    rosnode list
+    rosrun plotjuggler PlotJuggler
+
+To see rosbag info:
+    rosbag info rosbag_name.bag
+
+To run robot:
+    roscd dvrk_config/
+    rosrun dvrk_robot dvrk_console_json -j jhu-dVRK/console-MTMR-PSM1-Teleop.json -p 0.001 -i ros-io-PSM1.json
+
+To run force sensor:
+    roscd atinetft_ros/
+    cd ../examples
+    rosrun atinetft_ros atinetft_xml -c FT4472Net.xml -i 192.168.0.2 -r 0.001
+
+Rosbag commands to record data:
+
+No contact:
+    rosbag record -O no_contact /dvrk/PSM1/state_joint_current /dvrk/PSM1/state_jaw_current /dvrk/PSM1/state_jaw_desired /dvrk/PSM1/state_joint_desired /dvrk/PSM1/io/actuator_current_requested /dvrk/PSM1/io/actuator_current_measured /dvrk/PSM1/jacobian_body /dvrk/PSM1/jacobian_spatial
+
+With contact:
+    rosbag record -O no_filter_with_contact /dvrk/PSM1/state_joint_current /dvrk/PSM1/state_jaw_current /dvrk/PSM1/state_jaw_desired /dvrk/PSM1/state_joint_desired /dvrk/PSM1/io/actuator_current_requested /dvrk/PSM1/io/actuator_current_measured /dvrk/PSM1/jacobian_body /dvrk/PSM1/jacobian_spatial /atinetft/wrench /dvrk/PSM1/wrench_body_current /dvrk/PSM1/position_cartesian_local_current /dvrk/PSM1/twist_body_current 
+
